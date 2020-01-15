@@ -269,9 +269,8 @@ mod test {
     #[test]
     fn connect_to_nonexistent_peer() {
         let mut rt = Runtime::new().unwrap();
-        let transport = TcpTransport::new();
         let transport = NoiseTransport::new(
-            transport,
+            TcpTransport::new(),
             NoiseConfig::new(build_node_identity(PeerFeatures::COMMUNICATION_NODE)),
         );
         let (request_tx, request_rx) = mpsc::channel(1);
