@@ -25,7 +25,7 @@ use crate::{
     actor::{DhtActor, DhtRequest, DhtRequester},
     discovery::{DhtDiscoveryRequest, DhtDiscoveryRequester, DhtDiscoveryService},
     inbound,
-    inbound::{DecryptedDhtMessage, DhtInboundMessage},
+    inbound::{DecryptedDhtMessage, DhtInboundMessage, ValidateLayer},
     outbound,
     outbound::DhtOutboundRequest,
     proto::envelope::DhtMessageType,
@@ -173,6 +173,10 @@ impl Dht {
 
         ServiceBuilder::new()
             .layer(inbound::DeserializeLayer::new())
+            .layer(ValidateLayer::new(
+                self.config.network.clone(),
+                self.outbound_requester(),
+            ))
             .layer(inbound::DedupLayer::new(self.dht_requester()))
             .layer(tower_filter::FilterLayer::new(self.unsupported_saf_messages_filter()))
             .layer(inbound::DecryptionLayer::new(Arc::clone(&self.node_identity)))
@@ -227,6 +231,7 @@ impl Dht {
                 Arc::clone(&self.node_identity),
                 self.dht_requester(),
                 self.discovery_service_requester(),
+                self.config.network.clone(),
             ))
             .layer(outbound::EncryptionLayer::new(Arc::clone(&self.node_identity)))
             .layer(outbound::SerializeLayer::new(Arc::clone(&self.node_identity)))

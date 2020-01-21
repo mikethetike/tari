@@ -45,6 +45,7 @@ macro_rules! acquire_write_lock {
 }
 
 #[cfg(any(test, feature = "test-mocks"))]
+#[allow(unused_macros)]
 macro_rules! acquire_read_lock {
     ($e:expr) => {
         acquire_lock!($e, read)
