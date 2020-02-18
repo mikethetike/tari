@@ -35,6 +35,7 @@ use tari_comms::types::CommsPublicKey;
 use tari_core::transactions::{tari_amount::MicroTari, transaction::Transaction};
 use tari_service_framework::reply_channel::SenderService;
 use tower::Service;
+use tari_comms::peer_manager::NodeId;
 
 /// API Request enum
 #[derive(Debug)]
@@ -43,17 +44,17 @@ pub enum TransactionServiceRequest {
     GetPendingOutboundTransactions,
     GetCompletedTransactions,
     SetBaseNodePublicKey(CommsPublicKey),
-    SendTransaction((CommsPublicKey, MicroTari, MicroTari, String)),
+    SendTransaction((NodeId, MicroTari, MicroTari, String)),
     RequestCoinbaseSpendingKey((MicroTari, u64)),
     CompleteCoinbaseTransaction((TxId, Transaction)),
     CancelPendingCoinbaseTransaction(TxId),
-    ImportUtxo(MicroTari, CommsPublicKey, String),
+    ImportUtxo(MicroTari, NodeId, String),
     #[cfg(feature = "test_harness")]
     CompletePendingOutboundTransaction(CompletedTransaction),
     #[cfg(feature = "test_harness")]
     FinalizePendingInboundTransaction(TxId),
     #[cfg(feature = "test_harness")]
-    AcceptTestTransaction((TxId, MicroTari, CommsPublicKey)),
+    AcceptTestTransaction((TxId, MicroTari, NodeId)),
     #[cfg(feature = "test_harness")]
     MineTransaction(TxId),
     #[cfg(feature = "test_harness")]
@@ -123,7 +124,7 @@ impl TransactionServiceHandle {
 
     pub async fn send_transaction(
         &mut self,
-        dest_pubkey: CommsPublicKey,
+        dest_node_id: NodeId,
         amount: MicroTari,
         fee_per_gram: MicroTari,
         message: String,
@@ -132,7 +133,7 @@ impl TransactionServiceHandle {
         match self
             .handle
             .call(TransactionServiceRequest::SendTransaction((
-                dest_pubkey,
+                dest_node_id,
                 amount,
                 fee_per_gram,
                 message,
@@ -250,7 +251,7 @@ impl TransactionServiceHandle {
     pub async fn import_utxo(
         &mut self,
         amount: MicroTari,
-        source_public_key: CommsPublicKey,
+        source_node_id: NodeId,
         message: String,
     ) -> Result<TxId, TransactionServiceError>
     {
@@ -258,7 +259,7 @@ impl TransactionServiceHandle {
             .handle
             .call(TransactionServiceRequest::ImportUtxo(
                 amount,
-                source_public_key,
+                source_node_id,
                 message,
             ))
             .await??
@@ -291,7 +292,7 @@ impl TransactionServiceHandle {
         &mut self,
         tx_id: TxId,
         amount: MicroTari,
-        source_public_key: CommsPublicKey,
+        source_node_id: NodeId,
     ) -> Result<(), TransactionServiceError>
     {
         match self
@@ -299,7 +300,7 @@ impl TransactionServiceHandle {
             .call(TransactionServiceRequest::AcceptTestTransaction((
                 tx_id,
                 amount,
-                source_public_key,
+                source_node_id,
             )))
             .await??
         {

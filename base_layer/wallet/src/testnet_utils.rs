@@ -60,6 +60,7 @@ use tari_crypto::{
 use tari_p2p::initialization::CommsConfig;
 use tari_test_utils::collect_stream;
 use tokio::runtime::Runtime;
+use tari_comms::peer_manager::NodeId;
 
 // Used to generate test wallet data
 
@@ -206,11 +207,12 @@ pub fn generate_wallet_test_data<
     for i in 0..names.len() {
         let secret_key = CommsSecretKey::from_hex(private_keys[i]).expect("Could not parse hex key");
         let public_key = CommsPublicKey::from_secret_key(&secret_key);
+        let node_id = NodeId::from_key(&public_key).unwrap();
         wallet
             .runtime
             .block_on(wallet.contacts_service.upsert_contact(Contact {
                 alias: names[i].to_string(),
-                public_key: public_key.clone(),
+                node_id: node_id.clone(),
             }))?;
 
         wallet.set_base_node_peer(
@@ -281,14 +283,14 @@ pub fn generate_wallet_test_data<
     info!(target: LOG_TARGET, "Starting to execute test transactions");
     // Completed TX
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[0].public_key.clone(),
+        contacts[0].node_id.clone(),
         MicroTari::from(1_100_000),
         MicroTari::from(100),
         messages[message_index].clone(),
     ))?;
     message_index = (message_index + 1) % messages.len();
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[0].public_key.clone(),
+        contacts[0].node_id.clone(),
         MicroTari::from(2_010_500),
         MicroTari::from(110),
         messages[message_index].clone(),
@@ -296,7 +298,7 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[0].public_key.clone(),
+        contacts[0].node_id.clone(),
         MicroTari::from(10_000_000),
         MicroTari::from(110),
         messages[message_index].clone(),
@@ -304,7 +306,7 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[1].public_key.clone(),
+        contacts[1].node_id.clone(),
         MicroTari::from(3_441_000),
         MicroTari::from(105),
         messages[message_index].clone(),
@@ -312,14 +314,14 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[1].public_key.clone(),
+        contacts[1].node_id.clone(),
         MicroTari::from(14_100_000),
         MicroTari::from(100),
         messages[message_index].clone(),
     ))?;
     message_index = (message_index + 1) % messages.len();
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[0].public_key.clone(),
+        contacts[0].node_id.clone(),
         MicroTari::from(22_010_500),
         MicroTari::from(110),
         messages[message_index].clone(),
@@ -327,7 +329,7 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[0].public_key.clone(),
+        contacts[0].node_id.clone(),
         MicroTari::from(17_000_000),
         MicroTari::from(110),
         messages[message_index].clone(),
@@ -335,7 +337,7 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[1].public_key.clone(),
+        contacts[1].node_id.clone(),
         MicroTari::from(31_441_000),
         MicroTari::from(105),
         messages[message_index].clone(),
@@ -343,14 +345,14 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[0].public_key.clone(),
+        contacts[0].node_id.clone(),
         MicroTari::from(12_100_000),
         MicroTari::from(100),
         messages[message_index].clone(),
     ))?;
     message_index = (message_index + 1) % messages.len();
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[1].public_key.clone(),
+        contacts[1].node_id.clone(),
         MicroTari::from(28_010_500),
         MicroTari::from(110),
         messages[message_index].clone(),
@@ -359,7 +361,7 @@ pub fn generate_wallet_test_data<
 
     // Pending Outbound
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[2].public_key.clone(),
+        contacts[2].node_id.clone(),
         MicroTari::from(2_500_000),
         MicroTari::from(107),
         messages[message_index].clone(),
@@ -367,7 +369,7 @@ pub fn generate_wallet_test_data<
     message_index = (message_index + 1) % messages.len();
 
     wallet.runtime.block_on(wallet.transaction_service.send_transaction(
-        contacts[3].public_key.clone(),
+        contacts[3].node_id.clone(),
         MicroTari::from(3_512_000),
         MicroTari::from(117),
         messages[message_index].clone(),
@@ -420,7 +422,7 @@ pub fn generate_wallet_test_data<
     wallet_alice
         .runtime
         .block_on(wallet_alice.transaction_service.send_transaction(
-            wallet.comms.node_identity().public_key().clone(),
+            wallet.comms.node_identity().node_id().clone(),
             MicroTari::from(1_235_000),
             MicroTari::from(117),
             messages[message_index].clone(),
@@ -430,7 +432,7 @@ pub fn generate_wallet_test_data<
     wallet_alice
         .runtime
         .block_on(wallet_alice.transaction_service.send_transaction(
-            wallet.comms.node_identity().public_key().clone(),
+            wallet.comms.node_identity().node_id().clone(),
             MicroTari::from(3_500_000),
             MicroTari::from(117),
             messages[message_index].clone(),
@@ -440,7 +442,7 @@ pub fn generate_wallet_test_data<
     wallet_alice
         .runtime
         .block_on(wallet_alice.transaction_service.send_transaction(
-            wallet.comms.node_identity().public_key().clone(),
+            wallet.comms.node_identity().node_id().clone(),
             MicroTari::from(2_335_000),
             MicroTari::from(117),
             messages[message_index].clone(),
@@ -450,7 +452,7 @@ pub fn generate_wallet_test_data<
     wallet_bob
         .runtime
         .block_on(wallet_bob.transaction_service.send_transaction(
-            wallet.comms.node_identity().public_key().clone(),
+            wallet.comms.node_identity().node_id().clone(),
             MicroTari::from(8_035_000),
             MicroTari::from(117),
             messages[message_index].clone(),
@@ -460,7 +462,7 @@ pub fn generate_wallet_test_data<
     wallet_bob
         .runtime
         .block_on(wallet_bob.transaction_service.send_transaction(
-            wallet.comms.node_identity().public_key().clone(),
+            wallet.comms.node_identity().node_id().clone(),
             MicroTari::from(5_135_000),
             MicroTari::from(117),
             messages[message_index].clone(),
@@ -611,8 +613,8 @@ pub fn complete_sent_transaction<
         Some(p) => {
             let completed_tx: CompletedTransaction = CompletedTransaction {
                 tx_id: p.tx_id.clone(),
-                source_public_key: wallet.comms.node_identity().public_key().clone(),
-                destination_public_key: p.destination_public_key.clone(),
+                source_node_id: wallet.comms.node_identity().node_id().clone(),
+                destination_node_id: p.destination_node_id.clone(),
                 amount: p.amount.clone(),
                 fee: p.fee.clone(),
                 transaction: Transaction::new(Vec::new(), Vec::new(), Vec::new(), BlindingFactor::default()),
@@ -647,10 +649,10 @@ pub fn receive_test_transaction<
     wallet: &mut Wallet<T, U, V, W>,
 ) -> Result<(), WalletError> {
     let contacts = wallet.runtime.block_on(wallet.contacts_service.get_contacts()).unwrap();
-    let (_secret_key, mut public_key): (CommsSecretKey, CommsPublicKey) = PublicKey::random_keypair(&mut OsRng);
-
+    let (_secret_key, public_key): (CommsSecretKey, CommsPublicKey) = PublicKey::random_keypair(&mut OsRng);
+    let mut node_id = NodeId::from_key(&public_key).unwrap();
     if contacts.len() > 0 {
-        public_key = contacts[0].public_key.clone();
+        node_id = contacts[0].node_id.clone();
     }
 
     wallet
@@ -658,7 +660,7 @@ pub fn receive_test_transaction<
         .block_on(wallet.transaction_service.test_accept_transaction(
             OsRng.next_u64(),
             MicroTari::from(10_000 + OsRng.next_u64() % 10_1000),
-            public_key,
+            node_id,
         ))?;
 
     Ok(())

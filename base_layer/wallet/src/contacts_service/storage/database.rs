@@ -26,14 +26,14 @@ use std::{
     fmt::{Display, Error, Formatter},
     sync::Arc,
 };
-use tari_comms::types::CommsPublicKey;
+use tari_comms::peer_manager::NodeId;
 
 const LOG_TARGET: &'static str = "wallet::contacts_service::database";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Contact {
     pub alias: String,
-    pub public_key: CommsPublicKey,
+    pub node_id: NodeId,
 }
 
 /// This trait defines the functionality that a database backend need to provide for the Contacts Service
@@ -46,7 +46,7 @@ pub trait ContactsBackend: Send + Sync {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DbKey {
-    Contact(CommsPublicKey),
+    Contact(NodeId),
     Contacts,
 }
 
@@ -56,7 +56,7 @@ pub enum DbValue {
 }
 
 pub enum DbKeyValuePair {
-    Contact(CommsPublicKey, Contact),
+    Contact(NodeId, Contact),
 }
 
 pub enum WriteOperation {
@@ -90,9 +90,9 @@ where T: ContactsBackend + 'static
         Self { db: Arc::new(db) }
     }
 
-    pub async fn get_contact(&self, pub_key: CommsPublicKey) -> Result<Contact, ContactsServiceStorageError> {
+    pub async fn get_contact(&self, node_id: NodeId) -> Result<Contact, ContactsServiceStorageError> {
         let db_clone = self.db.clone();
-        tokio::task::spawn_blocking(move || fetch!(db_clone, pub_key.clone(), Contact))
+        tokio::task::spawn_blocking(move || fetch!(db_clone, node_id.clone(), Contact))
             .await
             .or_else(|err| Err(ContactsServiceStorageError::BlockingTaskSpawnError(err.to_string())))
             .and_then(|inner_result| inner_result)
@@ -121,7 +121,7 @@ where T: ContactsBackend + 'static
 
         tokio::task::spawn_blocking(move || {
             db_clone.write(WriteOperation::Upsert(DbKeyValuePair::Contact(
-                contact.public_key.clone(),
+                contact.node_id.clone(),
                 contact,
             )))
         })
@@ -131,16 +131,16 @@ where T: ContactsBackend + 'static
         Ok(())
     }
 
-    pub async fn remove_contact(&self, pub_key: CommsPublicKey) -> Result<Contact, ContactsServiceStorageError> {
+    pub async fn remove_contact(&self, node_id: NodeId) -> Result<Contact, ContactsServiceStorageError> {
         let db_clone = self.db.clone();
-        let pub_key_clone = pub_key.clone();
+        let node_id_clone = node_id.clone();
         let result =
-            tokio::task::spawn_blocking(move || db_clone.write(WriteOperation::Remove(DbKey::Contact(pub_key_clone))))
+            tokio::task::spawn_blocking(move || db_clone.write(WriteOperation::Remove(DbKey::Contact(node_id_clone))))
                 .await
                 .or_else(|err| Err(ContactsServiceStorageError::BlockingTaskSpawnError(err.to_string())))
                 .and_then(|inner_result| inner_result)?
                 .ok_or(ContactsServiceStorageError::ValueNotFound(DbKey::Contact(
-                    pub_key.clone(),
+                    node_id.clone(),
                 )))?;
 
         match result {

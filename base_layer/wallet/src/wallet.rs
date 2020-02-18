@@ -269,7 +269,7 @@ where
         &mut self,
         amount: &MicroTari,
         spending_key: &PrivateKey,
-        source_public_key: &CommsPublicKey,
+        source_node_id: &NodeId,
         message: String,
     ) -> Result<TxId, WalletError>
     {
@@ -280,7 +280,7 @@ where
 
         let tx_id = self.runtime.block_on(self.transaction_service.import_utxo(
             amount.clone(),
-            source_public_key.clone(),
+            source_node_id.clone(),
             message,
         ))?;
 

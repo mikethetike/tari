@@ -49,9 +49,10 @@ use diesel::{
 use std::{collections::HashMap, convert::TryFrom};
 use tari_core::transactions::{
     tari_amount::MicroTari,
-    types::{Commitment, PublicKey},
+    types::{Commitment},
 };
 use tari_crypto::tari_utilities::ByteArray;
+use tari_comms::peer_manager::NodeId;
 
 /// A Sqlite backend for the Transaction Service. The Backend is accessed via a connection pool to the Sqlite file.
 #[derive(Clone)]
@@ -464,7 +465,7 @@ impl TransactionBackend for TransactionServiceSqliteDatabase {
 #[table_name = "inbound_transactions"]
 struct InboundTransactionSql {
     tx_id: i64,
-    source_public_key: Vec<u8>,
+    source_node_id: Vec<u8>,
     amount: i64,
     receiver_protocol: String,
     message: String,
@@ -522,7 +523,7 @@ impl TryFrom<InboundTransaction> for InboundTransactionSql {
     fn try_from(i: InboundTransaction) -> Result<Self, Self::Error> {
         Ok(Self {
             tx_id: i.tx_id as i64,
-            source_public_key: i.source_public_key.to_vec(),
+            source_node_id: i.source_node_id.to_vec(),
             amount: u64::from(i.amount) as i64,
             receiver_protocol: serde_json::to_string(&i.receiver_protocol)?,
             message: i.message,
@@ -537,7 +538,7 @@ impl TryFrom<InboundTransactionSql> for InboundTransaction {
     fn try_from(i: InboundTransactionSql) -> Result<Self, Self::Error> {
         Ok(Self {
             tx_id: i.tx_id as u64,
-            source_public_key: PublicKey::from_vec(&i.source_public_key)
+            source_node_id: NodeId::from_vec(&i.source_node_id)
                 .map_err(|_| TransactionStorageError::ConversionError)?,
             amount: MicroTari::from(i.amount as u64),
             receiver_protocol: serde_json::from_str(&i.receiver_protocol)?,
@@ -552,7 +553,7 @@ impl TryFrom<InboundTransactionSql> for InboundTransaction {
 #[table_name = "outbound_transactions"]
 struct OutboundTransactionSql {
     tx_id: i64,
-    destination_public_key: Vec<u8>,
+    destination_node_id: Vec<u8>,
     amount: i64,
     fee: i64,
     sender_protocol: String,
@@ -611,7 +612,7 @@ impl TryFrom<OutboundTransaction> for OutboundTransactionSql {
     fn try_from(i: OutboundTransaction) -> Result<Self, Self::Error> {
         Ok(Self {
             tx_id: i.tx_id as i64,
-            destination_public_key: i.destination_public_key.to_vec(),
+            destination_node_id: i.destination_node_id.to_vec(),
             amount: u64::from(i.amount) as i64,
             fee: u64::from(i.fee) as i64,
             sender_protocol: serde_json::to_string(&i.sender_protocol)?,
@@ -627,7 +628,7 @@ impl TryFrom<OutboundTransactionSql> for OutboundTransaction {
     fn try_from(i: OutboundTransactionSql) -> Result<Self, Self::Error> {
         Ok(Self {
             tx_id: i.tx_id as u64,
-            destination_public_key: PublicKey::from_vec(&i.destination_public_key)
+            destination_node_id: NodeId::from_vec(&i.destination_node_id)
                 .map_err(|_| TransactionStorageError::ConversionError)?,
             amount: MicroTari::from(i.amount as u64),
             fee: MicroTari::from(i.fee as u64),
@@ -721,8 +722,8 @@ impl TryFrom<PendingCoinbaseTransactionSql> for PendingCoinbaseTransaction {
 #[table_name = "completed_transactions"]
 struct CompletedTransactionSql {
     tx_id: i64,
-    source_public_key: Vec<u8>,
-    destination_public_key: Vec<u8>,
+    source_node_id: Vec<u8>,
+    destination_node_id: Vec<u8>,
     amount: i64,
     fee: i64,
     transaction_protocol: String,
@@ -802,8 +803,8 @@ impl TryFrom<CompletedTransaction> for CompletedTransactionSql {
     fn try_from(c: CompletedTransaction) -> Result<Self, Self::Error> {
         Ok(Self {
             tx_id: c.tx_id as i64,
-            source_public_key: c.source_public_key.to_vec(),
-            destination_public_key: c.destination_public_key.to_vec(),
+            source_node_id: c.source_node_id.to_vec(),
+            destination_node_id: c.destination_node_id.to_vec(),
             amount: u64::from(c.amount) as i64,
             fee: u64::from(c.fee) as i64,
             transaction_protocol: serde_json::to_string(&c.transaction)?,
@@ -820,9 +821,9 @@ impl TryFrom<CompletedTransactionSql> for CompletedTransaction {
     fn try_from(c: CompletedTransactionSql) -> Result<Self, Self::Error> {
         Ok(Self {
             tx_id: c.tx_id as u64,
-            source_public_key: PublicKey::from_vec(&c.source_public_key)
+            source_node_id: NodeId::from_vec(&c.source_node_id)
                 .map_err(|_| TransactionStorageError::ConversionError)?,
-            destination_public_key: PublicKey::from_vec(&c.destination_public_key)
+            destination_node_id: NodeId::from_vec(&c.destination_node_id)
                 .map_err(|_| TransactionStorageError::ConversionError)?,
             amount: MicroTari::from(c.amount as u64),
             fee: MicroTari::from(c.fee as u64),
@@ -894,6 +895,7 @@ mod test {
     };
     use tari_test_utils::random::string;
     use tempdir::TempDir;
+    use tari_comms::peer_manager::NodeId;
 
     #[test]
     fn test_crud() {
@@ -934,7 +936,7 @@ mod test {
 
         let outbound_tx1 = OutboundTransaction {
             tx_id: 1u64,
-            destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount,
             fee: stp.clone().get_fee_amount().unwrap(),
             sender_protocol: stp.clone(),
@@ -944,7 +946,7 @@ mod test {
 
         let outbound_tx2 = OutboundTransactionSql::try_from(OutboundTransaction {
             tx_id: 2u64,
-            destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount,
             fee: stp.clone().get_fee_amount().unwrap(),
             sender_protocol: stp.clone(),
@@ -980,7 +982,7 @@ mod test {
 
         let inbound_tx1 = InboundTransaction {
             tx_id: 2,
-            source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount,
             receiver_protocol: rtp.clone(),
             message: "Yo!".to_string(),
@@ -988,7 +990,7 @@ mod test {
         };
         let inbound_tx2 = InboundTransaction {
             tx_id: 3,
-            source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount,
             receiver_protocol: rtp.clone(),
             message: "Hey!".to_string(),
@@ -1018,8 +1020,8 @@ mod test {
 
         let completed_tx1 = CompletedTransaction {
             tx_id: 2,
-            source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
-            destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
+            destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount,
             fee: MicroTari::from(100),
             transaction: tx.clone(),
@@ -1029,8 +1031,8 @@ mod test {
         };
         let completed_tx2 = CompletedTransaction {
             tx_id: 3,
-            source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
-            destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
+            destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount,
             fee: MicroTari::from(100),
             transaction: tx.clone(),

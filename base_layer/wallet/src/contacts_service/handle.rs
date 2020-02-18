@@ -21,15 +21,15 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::contacts_service::{error::ContactsServiceError, storage::database::Contact};
-use tari_comms::types::CommsPublicKey;
 use tari_service_framework::reply_channel::SenderService;
 use tower::Service;
+use tari_comms::peer_manager::NodeId;
 
 #[derive(Debug)]
 pub enum ContactsServiceRequest {
-    GetContact(CommsPublicKey),
+    GetContact(NodeId),
     UpsertContact(Contact),
-    RemoveContact(CommsPublicKey),
+    RemoveContact(NodeId),
     GetContacts,
 }
 
@@ -52,8 +52,8 @@ impl ContactsServiceHandle {
         Self { handle }
     }
 
-    pub async fn get_contact(&mut self, pub_key: CommsPublicKey) -> Result<Contact, ContactsServiceError> {
-        match self.handle.call(ContactsServiceRequest::GetContact(pub_key)).await?? {
+    pub async fn get_contact(&mut self, node_id: NodeId) -> Result<Contact, ContactsServiceError> {
+        match self.handle.call(ContactsServiceRequest::GetContact(node_id)).await?? {
             ContactsServiceResponse::Contact(c) => Ok(c),
             _ => Err(ContactsServiceError::UnexpectedApiResponse),
         }
@@ -77,10 +77,10 @@ impl ContactsServiceHandle {
         }
     }
 
-    pub async fn remove_contact(&mut self, pub_key: CommsPublicKey) -> Result<Contact, ContactsServiceError> {
+    pub async fn remove_contact(&mut self, node_id: NodeId) -> Result<Contact, ContactsServiceError> {
         match self
             .handle
-            .call(ContactsServiceRequest::RemoveContact(pub_key))
+            .call(ContactsServiceRequest::RemoveContact(node_id))
             .await??
         {
             ContactsServiceResponse::ContactRemoved(c) => Ok(c),

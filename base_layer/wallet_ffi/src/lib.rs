@@ -166,6 +166,7 @@ pub type TariWallet = tari_wallet::wallet::Wallet<
 >;
 
 pub type TariPublicKey = tari_comms::types::CommsPublicKey;
+pub type TariNodeId = tari_comms::peer_manager::NodeId;
 pub type TariPrivateKey = tari_comms::types::CommsSecretKey;
 pub type TariCommsConfig = tari_p2p::initialization::CommsConfig;
 pub struct TariContacts(Vec<TariContact>);
@@ -627,7 +628,7 @@ pub unsafe extern "C" fn private_key_from_hex(key: *const c_char, error_out: *mu
 ///
 /// ## Arguments
 /// `alias` - The pointer to a char array
-/// `public_key` - The pointer to a TariPublicKey
+/// `node_id` - The pointer to a TariNodeId
 /// `error_out` - Pointer to an int which will be modified to an error code should one occur, may not be null. Functions
 /// as an out parameter.
 ///
@@ -637,7 +638,7 @@ pub unsafe extern "C" fn private_key_from_hex(key: *const c_char, error_out: *mu
 #[no_mangle]
 pub unsafe extern "C" fn contact_create(
     alias: *const c_char,
-    public_key: *mut TariPublicKey,
+    node_id: *mut TariNodeId,
     error_out: *mut c_int,
 ) -> *mut TariContact
 {
@@ -652,7 +653,7 @@ pub unsafe extern "C" fn contact_create(
         alias_string = CStr::from_ptr(alias).to_str().unwrap().to_owned();
     }
 
-    if public_key.is_null() {
+    if node_id.is_null() {
         error = LibWalletError::from(InterfaceError::NullError("public_key".to_string())).code;
         ptr::swap(error_out, &mut error as *mut c_int);
         return ptr::null_mut();
@@ -660,7 +661,7 @@ pub unsafe extern "C" fn contact_create(
 
     let contact = Contact {
         alias: alias_string.to_string(),
-        public_key: (*public_key).clone(),
+        node_id: (*node_id).clone(),
     };
     Box::into_raw(Box::new(contact))
 }
@@ -689,7 +690,7 @@ pub unsafe extern "C" fn contact_get_alias(contact: *mut TariContact, error_out:
     CString::into_raw(a)
 }
 
-/// Gets the TariPublicKey of the TariContact
+/// Gets the TariNodeId of the TariContact
 ///
 /// ## Arguments
 /// `contact` - The pointer to a TariContact
@@ -697,13 +698,13 @@ pub unsafe extern "C" fn contact_get_alias(contact: *mut TariContact, error_out:
 /// as an out parameter.
 ///
 /// ## Returns
-/// `*mut TariPublicKey` - Returns a pointer to a TariPublicKey. Note that it returns
+/// `*mut TariNodeId` - Returns a pointer to a TariNodeId. Note that it returns
 /// ptr::null_mut() if contact is null
 #[no_mangle]
-pub unsafe extern "C" fn contact_get_public_key(
+pub unsafe extern "C" fn contact_get_node_id(
     contact: *mut TariContact,
     error_out: *mut c_int,
-) -> *mut TariPublicKey
+) -> *mut TariNodeId
 {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
@@ -712,7 +713,7 @@ pub unsafe extern "C" fn contact_get_public_key(
         ptr::swap(error_out, &mut error as *mut c_int);
         return ptr::null_mut();
     }
-    Box::into_raw(Box::new((*contact).public_key.clone()))
+    Box::into_raw(Box::new((*contact).node_id.clone()))
 }
 
 /// Frees memory for a TariContact
@@ -1072,7 +1073,7 @@ pub unsafe extern "C" fn completed_transaction_get_transaction_id(
     (*transaction).tx_id as c_ulonglong
 }
 
-/// Gets the destination TariPublicKey of a TariCompletedTransaction
+/// Gets the destination TariNodeId of a TariCompletedTransaction
 ///
 /// ## Arguments
 /// `transaction` - The pointer to a TariCompletedTransaction
@@ -1080,13 +1081,13 @@ pub unsafe extern "C" fn completed_transaction_get_transaction_id(
 /// as an out parameter.
 ///
 /// ## Returns
-/// `*mut TairPublicKey` - Returns the destination TariPublicKey, note that it will be
+/// `*mut TairNodeId` - Returns the destination TariNodeId, note that it will be
 /// ptr::null_mut() if transaction is null
 #[no_mangle]
-pub unsafe extern "C" fn completed_transaction_get_destination_public_key(
+pub unsafe extern "C" fn completed_transaction_get_destination_node_id(
     transaction: *mut TariCompletedTransaction,
     error_out: *mut c_int,
-) -> *mut TariPublicKey
+) -> *mut TariNodeId
 {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
@@ -1095,11 +1096,11 @@ pub unsafe extern "C" fn completed_transaction_get_destination_public_key(
         ptr::swap(error_out, &mut error as *mut c_int);
         return ptr::null_mut();
     }
-    let m = (*transaction).destination_public_key.clone();
+    let m = (*transaction).destination_node_id.clone();
     Box::into_raw(Box::new(m))
 }
 
-/// Gets the source TariPublicKey of a TariCompletedTransaction
+/// Gets the source TariNodeId of a TariCompletedTransaction
 ///
 /// ## Arguments
 /// `transaction` - The pointer to a TariCompletedTransaction
@@ -1107,13 +1108,13 @@ pub unsafe extern "C" fn completed_transaction_get_destination_public_key(
 /// as an out parameter.
 ///
 /// ## Returns
-/// `*mut TairPublicKey` - Returns the source TariPublicKey, note that it will be
+/// `*mut TariNodeId` - Returns the source TariNodeId, note that it will be
 /// ptr::null_mut() if transaction is null
 #[no_mangle]
-pub unsafe extern "C" fn completed_transaction_get_source_public_key(
+pub unsafe extern "C" fn completed_transaction_get_source_node_id(
     transaction: *mut TariCompletedTransaction,
     error_out: *mut c_int,
-) -> *mut TariPublicKey
+) -> *mut TariNodeId
 {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
@@ -1122,7 +1123,7 @@ pub unsafe extern "C" fn completed_transaction_get_source_public_key(
         ptr::swap(error_out, &mut error as *mut c_int);
         return ptr::null_mut();
     }
-    let m = (*transaction).source_public_key.clone();
+    let m = (*transaction).source_node_id.clone();
     Box::into_raw(Box::new(m))
 }
 
@@ -1306,7 +1307,7 @@ pub unsafe extern "C" fn pending_outbound_transaction_get_transaction_id(
     (*transaction).tx_id as c_ulonglong
 }
 
-/// Gets the destination TariPublicKey of a TariPendingOutboundTransaction
+/// Gets the destination TariNodeId of a TariPendingOutboundTransaction
 ///
 /// ## Arguments
 /// `transaction` - The pointer to a TariPendingOutboundTransaction
@@ -1314,13 +1315,13 @@ pub unsafe extern "C" fn pending_outbound_transaction_get_transaction_id(
 /// as an out parameter.
 ///
 /// ## Returns
-/// `*mut TariPublicKey` - Returns the destination TariPublicKey, note that it will be
+/// `*mut TariNodeId` - Returns the destination TariNodeId, note that it will be
 /// ptr::null_mut() if transaction is null
 #[no_mangle]
-pub unsafe extern "C" fn pending_outbound_transaction_get_destination_public_key(
+pub unsafe extern "C" fn pending_outbound_transaction_get_destination_node_id(
     transaction: *mut TariPendingOutboundTransaction,
     error_out: *mut c_int,
-) -> *mut TariPublicKey
+) -> *mut TariNodeId
 {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
@@ -1329,7 +1330,7 @@ pub unsafe extern "C" fn pending_outbound_transaction_get_destination_public_key
         ptr::swap(error_out, &mut error as *mut c_int);
         return ptr::null_mut();
     }
-    let m = (*transaction).destination_public_key.clone();
+    let m = (*transaction).destination_node_id.clone();
     Box::into_raw(Box::new(m))
 }
 
@@ -1481,7 +1482,7 @@ pub unsafe extern "C" fn pending_inbound_transaction_get_transaction_id(
     (*transaction).tx_id as c_ulonglong
 }
 
-/// Gets the source TariPublicKey of a TariPendingInboundTransaction
+/// Gets the source TariNodeId of a TariPendingInboundTransaction
 ///
 /// ## Arguments
 /// `transaction` - The pointer to a TariPendingInboundTransaction
@@ -1489,13 +1490,13 @@ pub unsafe extern "C" fn pending_inbound_transaction_get_transaction_id(
 /// as an out parameter.
 ///
 /// ## Returns
-/// `*mut TariPublicKey` - Returns a pointer to the source TariPublicKey, note that it will be
+/// `*mut TariNodeId` - Returns a pointer to the source TariNodeId, note that it will be
 /// ptr::null_mut() if transaction is null
 #[no_mangle]
-pub unsafe extern "C" fn pending_inbound_transaction_get_source_public_key(
+pub unsafe extern "C" fn pending_inbound_transaction_get_source_node_id(
     transaction: *mut TariPendingInboundTransaction,
     error_out: *mut c_int,
-) -> *mut TariPublicKey
+) -> *mut TariNodeId
 {
     let mut error = 0;
     ptr::swap(error_out, &mut error as *mut c_int);
@@ -1504,7 +1505,7 @@ pub unsafe extern "C" fn pending_inbound_transaction_get_source_public_key(
         ptr::swap(error_out, &mut error as *mut c_int);
         return ptr::null_mut();
     }
-    let m = (*transaction).source_public_key.clone();
+    let m = (*transaction).source_node_id.clone();
     Box::into_raw(Box::new(m))
 }
 
@@ -2132,7 +2133,7 @@ pub unsafe extern "C" fn wallet_is_completed_transaction_outbound(
         return false;
     }
 
-    if (*tx).source_public_key == (*wallet).comms.node_identity().public_key().clone() {
+    if (*tx).source_node_id == (*wallet).comms.node_identity().node_id().clone() {
         return true;
     }
 
@@ -2386,7 +2387,7 @@ pub unsafe extern "C" fn wallet_remove_contact(
 
     match (*wallet)
         .runtime
-        .block_on((*wallet).contacts_service.remove_contact((*contact).public_key.clone()))
+        .block_on((*wallet).contacts_service.remove_contact((*contact).node_id.clone()))
     {
         Ok(_) => true,
         Err(e) => {
@@ -2519,7 +2520,7 @@ pub unsafe extern "C" fn wallet_get_pending_outgoing_balance(
 #[no_mangle]
 pub unsafe extern "C" fn wallet_send_transaction(
     wallet: *mut TariWallet,
-    dest_public_key: *mut TariPublicKey,
+    dest_node_id: *mut TariNodeId,
     amount: c_ulonglong,
     fee_per_gram: c_ulonglong,
     message: *const c_char,
@@ -2534,8 +2535,8 @@ pub unsafe extern "C" fn wallet_send_transaction(
         return false;
     }
 
-    if dest_public_key.is_null() {
-        error = LibWalletError::from(InterfaceError::NullError("dest_public_key".to_string())).code;
+    if dest_node_id.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("dest_node_id".to_string())).code;
         ptr::swap(error_out, &mut error as *mut c_int);
         return false;
     }
@@ -2551,7 +2552,7 @@ pub unsafe extern "C" fn wallet_send_transaction(
     match (*wallet)
         .runtime
         .block_on((*wallet).transaction_service.send_transaction(
-            (*dest_public_key).clone(),
+            (*dest_node_id).clone(),
             MicroTari::from(amount),
             MicroTari::from(fee_per_gram),
             message_string,
@@ -2916,7 +2917,7 @@ pub unsafe extern "C" fn wallet_import_utxo(
     wallet: *mut TariWallet,
     amount: c_ulonglong,
     spending_key: *mut TariPrivateKey,
-    source_public_key: *mut TariPublicKey,
+    source_node_id: *mut TariNodeId,
     message: *const c_char,
     error_out: *mut c_int,
 ) -> c_ulonglong
@@ -2935,8 +2936,8 @@ pub unsafe extern "C" fn wallet_import_utxo(
         return 0;
     }
 
-    if source_public_key.is_null() {
-        error = LibWalletError::from(InterfaceError::NullError("source_public_key".to_string())).code;
+    if source_node_id.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("source_node_id".to_string())).code;
         ptr::swap(error_out, &mut error as *mut c_int);
         return 0;
     }
@@ -2952,7 +2953,7 @@ pub unsafe extern "C" fn wallet_import_utxo(
     match (*wallet).import_utxo(
         &MicroTari::from(amount),
         &(*spending_key).clone(),
-        &(*source_public_key).clone(),
+        &(*source_node_id).clone(),
         message_string,
     ) {
         Ok(tx_id) => tx_id,
@@ -3319,9 +3320,9 @@ mod test {
             let alias = contact_get_alias(test_contact, error_ptr);
             let alias_string = CString::from_raw(alias).to_str().unwrap().to_owned();
             assert_eq!(alias_string, test_str);
-            let contact_key = contact_get_public_key(test_contact, error_ptr);
-            let contact_key_bytes = public_key_get_bytes(contact_key, error_ptr);
-            let contact_bytes_len = byte_vector_get_length(contact_key_bytes, error_ptr);
+            let contact_node = contact_get_node_id(test_contact, error_ptr);
+            let contact_node_bytes = public_key_get_bytes(contact_node, error_ptr);
+            let contact_bytes_len = byte_vector_get_length(contact_node_bytes, error_ptr);
             assert_eq!(contact_bytes_len, 32);
             contact_destroy(test_contact);
             public_key_destroy(test_contact_public_key);
@@ -3356,7 +3357,7 @@ mod test {
                 error,
                 LibWalletError::from(InterfaceError::NullError("contact_ptr".to_string())).code
             );
-            let _contact_key = contact_get_public_key(ptr::null_mut(), error_ptr);
+            let _contact_key = contact_get_node_id(ptr::null_mut(), error_ptr);
             assert_eq!(
                 error,
                 LibWalletError::from(InterfaceError::NullError("contact_ptr".to_string())).code

@@ -52,10 +52,10 @@ impl ContactsBackend for ContactsServiceMemoryDatabase {
     fn fetch(&self, key: &DbKey) -> Result<Option<DbValue>, ContactsServiceStorageError> {
         let db = acquire_read_lock!(self.db);
         let result = match key {
-            DbKey::Contact(pk) => db
+            DbKey::Contact(node) => db
                 .contacts
                 .iter()
-                .find(|v| &v.public_key == pk)
+                .find(|v| &v.node_id == node)
                 .map(|c| DbValue::Contact(Box::new(c.clone()))),
             DbKey::Contacts => Some(DbValue::Contacts(db.contacts.clone())),
         };
@@ -67,14 +67,14 @@ impl ContactsBackend for ContactsServiceMemoryDatabase {
         let mut db = acquire_write_lock!(self.db);
         match op {
             WriteOperation::Upsert(kvp) => match kvp {
-                DbKeyValuePair::Contact(pk, c) => match db.contacts.iter_mut().find(|i| i.public_key == pk) {
+                DbKeyValuePair::Contact(node, c) => match db.contacts.iter_mut().find(|i| i.node_id == node) {
                     None => db.contacts.push(c),
                     Some(existing_contact) => existing_contact.alias = c.alias,
                 },
             },
             WriteOperation::Remove(k) => match k {
-                DbKey::Contact(pk) => match db.contacts.iter().position(|c| c.public_key == pk) {
-                    None => return Err(ContactsServiceStorageError::ValueNotFound(DbKey::Contact(pk))),
+                DbKey::Contact(node) => match db.contacts.iter().position(|c| c.node_id == node) {
+                    None => return Err(ContactsServiceStorageError::ValueNotFound(DbKey::Contact(node))),
                     Some(pos) => return Ok(Some(DbValue::Contact(Box::new(db.contacts.remove(pos))))),
                 },
                 DbKey::Contacts => {

@@ -109,6 +109,7 @@ use tari_wallet::{
 };
 use tempdir::TempDir;
 use tokio::runtime::{Builder, Runtime};
+use tari_comms::peer_manager::NodeId;
 
 fn create_runtime() -> Runtime {
     Builder::new()
@@ -310,7 +311,7 @@ fn manage_single_transaction<T: TransactionBackend + Clone + 'static>(
 
     assert!(runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             value,
             MicroTari::from(20),
             "".to_string()
@@ -321,7 +322,7 @@ fn manage_single_transaction<T: TransactionBackend + Clone + 'static>(
     let message = "TAKE MAH MONEYS!".to_string();
     runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             value,
             MicroTari::from(20),
             message.clone(),
@@ -497,7 +498,7 @@ fn manage_multiple_transactions<T: TransactionBackend + Clone + 'static>(
     let value_a_to_c_1 = MicroTari::from(1400);
     runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             value_a_to_b_1,
             MicroTari::from(20),
             "".to_string(),
@@ -505,7 +506,7 @@ fn manage_multiple_transactions<T: TransactionBackend + Clone + 'static>(
         .unwrap();
     runtime
         .block_on(alice_ts.send_transaction(
-            carol_node_identity.public_key().clone(),
+            carol_node_identity.node_id().clone(),
             value_a_to_c_1,
             MicroTari::from(20),
             "".to_string(),
@@ -551,7 +552,7 @@ fn manage_multiple_transactions<T: TransactionBackend + Clone + 'static>(
 
     runtime
         .block_on(bob_ts.send_transaction(
-            alice_node_identity.public_key().clone(),
+            alice_node_identity.node_id().clone(),
             value_b_to_a_1,
             MicroTari::from(20),
             "".to_string(),
@@ -559,7 +560,7 @@ fn manage_multiple_transactions<T: TransactionBackend + Clone + 'static>(
         .unwrap();
     runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             value_a_to_b_2,
             MicroTari::from(20),
             "".to_string(),
@@ -769,7 +770,7 @@ fn test_accepting_unknown_tx_id_and_malformed_reply<T: TransactionBackend + Clon
 
     runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             MicroTari::from(500),
             MicroTari::from(1000),
             "".to_string(),
@@ -1218,7 +1219,7 @@ fn discovery_async_return_test() {
     let value_a_to_c_1 = MicroTari::from(1400);
 
     let tx_id = match runtime.block_on(alice_ts.send_transaction(
-        carol_node_identity.public_key().clone(),
+        carol_node_identity.node_id().clone(),
         value_a_to_c_1,
         MicroTari::from(20),
         "Discovery Tx!".to_string(),
@@ -1262,7 +1263,7 @@ fn discovery_async_return_test() {
     );
 
     let tx_id2 = match runtime.block_on(alice_ts.send_transaction(
-        dave_node_identity.public_key().clone(),
+        dave_node_identity.node_id().clone(),
         value_a_to_c_1,
         MicroTari::from(20),
         "Discovery Tx2!".to_string(),
@@ -1471,7 +1472,7 @@ fn transaction_mempool_broadcast() {
 
     runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             10000 * uT,
             100 * uT,
             "Testing Message".to_string(),
@@ -1701,8 +1702,8 @@ fn broadcast_all_completed_transactions_on_startup() {
 
     let completed_tx1 = CompletedTransaction {
         tx_id: 1,
-        source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
-        destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+        source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
+        destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
         amount: 5000 * uT,
         fee: MicroTari::from(100),
         transaction: tx.clone(),
@@ -1827,7 +1828,7 @@ fn transaction_base_node_monitoring() {
 
     runtime
         .block_on(alice_ts.send_transaction(
-            bob_node_identity.public_key().clone(),
+            bob_node_identity.node_id().clone(),
             amount_sent,
             100 * uT,
             "Testing Message".to_string(),
@@ -2066,8 +2067,8 @@ fn query_all_completed_transactions_on_startup() {
 
     let completed_tx1 = CompletedTransaction {
         tx_id: 1,
-        source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
-        destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+        source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
+        destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
         amount: 5000 * uT,
         fee: MicroTari::from(100),
         transaction: tx.clone(),

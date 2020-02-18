@@ -94,9 +94,9 @@ where T: ContactsBackend + 'static
     ) -> Result<ContactsServiceResponse, ContactsServiceError>
     {
         Ok(match request {
-            ContactsServiceRequest::GetContact(pk) => self
+            ContactsServiceRequest::GetContact(node) => self
                 .db
-                .get_contact(pk)
+                .get_contact(node)
                 .await
                 .map(|c| ContactsServiceResponse::Contact(c))?,
             ContactsServiceRequest::UpsertContact(c) => self
@@ -104,9 +104,9 @@ where T: ContactsBackend + 'static
                 .upsert_contact(c)
                 .await
                 .map(|_| ContactsServiceResponse::ContactSaved)?,
-            ContactsServiceRequest::RemoveContact(pk) => self
+            ContactsServiceRequest::RemoveContact(node) => self
                 .db
-                .remove_contact(pk)
+                .remove_contact(node)
                 .await
                 .map(|c| ContactsServiceResponse::ContactRemoved(c))?,
             ContactsServiceRequest::GetContacts => self

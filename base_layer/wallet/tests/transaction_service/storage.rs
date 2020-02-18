@@ -53,6 +53,7 @@ use tari_wallet::{
 };
 use tempdir::TempDir;
 use tokio::runtime::Runtime;
+use tari_comms::peer_manager::NodeId;
 
 pub fn test_db_backend<T: TransactionBackend + 'static>(backend: T) {
     let mut runtime = Runtime::new().unwrap();
@@ -84,7 +85,7 @@ pub fn test_db_backend<T: TransactionBackend + 'static>(backend: T) {
     for i in 0..messages.len() {
         outbound_txs.push(OutboundTransaction {
             tx_id: (i + 10) as u64,
-            destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount: amounts[i].clone(),
             fee: stp.clone().get_fee_amount().unwrap(),
             sender_protocol: stp.clone(),
@@ -132,7 +133,7 @@ pub fn test_db_backend<T: TransactionBackend + 'static>(backend: T) {
     for i in 0..messages.len() {
         inbound_txs.push(InboundTransaction {
             tx_id: i as u64,
-            source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount: amounts[i].clone(),
             receiver_protocol: rtp.clone(),
             message: messages[i].clone(),
@@ -201,8 +202,8 @@ pub fn test_db_backend<T: TransactionBackend + 'static>(backend: T) {
     for i in 0..messages.len() {
         completed_txs.push(CompletedTransaction {
             tx_id: outbound_txs[i].tx_id,
-            source_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
-            destination_public_key: PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng)),
+            source_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
+            destination_node_id: NodeId::from_key(&PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng))).unwrap(),
             amount: outbound_txs[i].amount,
             fee: MicroTari::from(200),
             transaction: tx.clone(),

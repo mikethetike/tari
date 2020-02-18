@@ -30,7 +30,6 @@ use std::{
     fmt::{Display, Error, Formatter},
     sync::Arc,
 };
-use tari_comms::types::CommsPublicKey;
 use tari_core::transactions::{
     tari_amount::{uT, MicroTari},
     transaction::Transaction,
@@ -38,6 +37,7 @@ use tari_core::transactions::{
     ReceiverTransactionProtocol,
     SenderTransactionProtocol,
 };
+use tari_comms::peer_manager::NodeId;
 
 const LOG_TARGET: &'static str = "wallet::transaction_service::database";
 
@@ -118,7 +118,7 @@ impl TryFrom<i32> for TransactionStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct InboundTransaction {
     pub tx_id: TxId,
-    pub source_public_key: CommsPublicKey,
+    pub source_node_id: NodeId,
     pub amount: MicroTari,
     pub receiver_protocol: ReceiverTransactionProtocol,
     pub message: String,
@@ -128,7 +128,7 @@ pub struct InboundTransaction {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OutboundTransaction {
     pub tx_id: TxId,
-    pub destination_public_key: CommsPublicKey,
+    pub destination_node_id: NodeId,
     pub amount: MicroTari,
     pub fee: MicroTari,
     pub sender_protocol: SenderTransactionProtocol,
@@ -147,8 +147,8 @@ pub struct PendingCoinbaseTransaction {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompletedTransaction {
     pub tx_id: TxId,
-    pub source_public_key: CommsPublicKey,
-    pub destination_public_key: CommsPublicKey,
+    pub source_node_id: NodeId,
+    pub destination_node_id: NodeId,
     pub amount: MicroTari,
     pub fee: MicroTari,
     pub transaction: Transaction,
@@ -514,15 +514,15 @@ where T: TransactionBackend + 'static
         &mut self,
         tx_id: TxId,
         amount: MicroTari,
-        source_public_key: CommsPublicKey,
-        comms_public_key: CommsPublicKey,
+        source_node_id: NodeId,
+        comms_node_id: NodeId,
         message: String,
     ) -> Result<(), TransactionStorageError>
     {
         let transaction = CompletedTransaction {
             tx_id: tx_id.clone(),
-            source_public_key: source_public_key.clone(),
-            destination_public_key: comms_public_key.clone(),
+            source_node_id: source_node_id.clone(),
+            destination_node_id: comms_node_id.clone(),
             amount,
             fee: 0 * uT,
             transaction: Transaction::new(Vec::new(), Vec::new(), Vec::new(), BlindingFactor::default()),

@@ -10,8 +10,8 @@ table! {
 table! {
     completed_transactions (tx_id) {
         tx_id -> BigInt,
-        source_public_key -> Binary,
-        destination_public_key -> Binary,
+        source_node_id -> Binary,
+        destination_node_id -> Binary,
         amount -> BigInt,
         fee -> BigInt,
         transaction_protocol -> Text,
@@ -22,8 +22,8 @@ table! {
 }
 
 table! {
-    contacts (public_key) {
-        public_key -> Binary,
+    contacts (node_id) {
+        node_id -> Binary,
         alias -> Text,
     }
 }
@@ -31,7 +31,7 @@ table! {
 table! {
     inbound_transactions (tx_id) {
         tx_id -> BigInt,
-        source_public_key -> Binary,
+        source_node_id -> Binary,
         amount -> BigInt,
         receiver_protocol -> Text,
         message -> Text,
@@ -52,7 +52,7 @@ table! {
 table! {
     outbound_transactions (tx_id) {
         tx_id -> BigInt,
-        destination_public_key -> Binary,
+        destination_node_id -> Binary,
         amount -> BigInt,
         fee -> BigInt,
         sender_protocol -> Text,

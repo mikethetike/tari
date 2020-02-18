@@ -41,12 +41,12 @@ use std::{
 };
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString};
-use tari_comms::types::CommsPublicKey;
 use tari_core::{
     tari_utilities::hex::Hex,
     transactions::tari_amount::{uT, MicroTari},
 };
 use tokio::runtime;
+use tari_comms::peer_manager::NodeId;
 
 /// Enum representing commands used by the basenode
 #[derive(Clone, PartialEq, Debug, Display, EnumIter, EnumString)]
@@ -228,18 +228,18 @@ impl Parser {
             return;
         }
         let amount: MicroTari = amount.unwrap().into();
-        let dest_pubkey = CommsPublicKey::from_hex(command_arg[2]);
-        if dest_pubkey.is_err() {
+        let mut dest_node_id = NodeId::from_hex(command_arg[2]);
+        if dest_node_id.is_err() {
             println!("please enter a valid destination pub_key");
             return;
         }
-        let dest_pubkey = dest_pubkey.unwrap();
+        let node_id = dest_node_id.unwrap();
         let fee_per_gram = 25 * uT;
         let mut handler = self.base_node_context.wallet_transaction_service.clone();
         self.executor.spawn(async move {
             match handler
                 .send_transaction(
-                    dest_pubkey.clone(),
+                    node_id.clone(),
                     amount,
                     fee_per_gram,
                     "coinbase reward from mining".into(),
@@ -252,7 +252,7 @@ impl Parser {
                     warn!(target: LOG_TARGET, "Error communicating with wallet: {}", e.to_string(),);
                     return;
                 },
-                Ok(_) => println!("Send {} Tari to {} ", amount, dest_pubkey),
+                Ok(_) => println!("Send {} Tari to {} ", amount, node_id.clone()),
             };
         });
     }

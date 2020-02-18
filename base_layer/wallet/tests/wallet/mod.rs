@@ -32,7 +32,7 @@ use tari_comms::{
 #[cfg(feature = "test_harness")]
 use tari_comms_dht::DhtConfig;
 use tari_core::transactions::{tari_amount::MicroTari, types::CryptoFactories};
-use tari_crypto::keys::PublicKey;
+use tari_crypto::keys::{PublicKey, SecretKey};
 use tari_p2p::initialization::CommsConfig;
 use tari_test_utils::{collect_stream, paths::with_temp_dir};
 
@@ -47,6 +47,7 @@ use tari_wallet::{
 };
 use tempdir::TempDir;
 use tokio::runtime::Runtime;
+use tari_crypto::ristretto::{RistrettoSecretKey, RistrettoPublicKey};
 
 fn create_peer(public_key: CommsPublicKey, net_address: Multiaddr) -> Peer {
     Peer::new(
@@ -184,7 +185,7 @@ fn test_wallet() {
 
         runtime
             .block_on(alice_wallet.transaction_service.send_transaction(
-                bob_identity.public_key().clone(),
+                bob_identity.node_id().clone(),
                 value,
                 MicroTari::from(20),
                 "".to_string(),
@@ -210,11 +211,11 @@ fn test_wallet() {
 
         let mut contacts = Vec::new();
         for i in 0..2 {
-            let (_secret_key, public_key) = PublicKey::random_keypair(&mut OsRng);
-
+            let (_secret_key, public_key) : (RistrettoSecretKey, RistrettoPublicKey) = PublicKey::random_keypair(&mut OsRng);
+            let node_id = NodeId::from_key(&public_key).unwrap();
             contacts.push(Contact {
                 alias: random_string(8),
-                public_key,
+                node_id,
             });
 
             runtime
@@ -282,7 +283,7 @@ fn test_import_utxo() {
         .import_utxo(
             &utxo.value,
             &utxo.spending_key,
-            base_node_identity.public_key(),
+            base_node_identity.node_id(),
             "Testing".to_string(),
         )
         .unwrap();

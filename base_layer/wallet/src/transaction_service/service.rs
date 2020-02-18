@@ -93,6 +93,7 @@ use tari_core::{
 use tari_crypto::{commitment::HomomorphicCommitmentFactory, keys::SecretKey, tari_utilities::hash::Hashable};
 use tari_p2p::{domain_message::DomainMessage, tari_message::TariMessageType};
 use tari_service_framework::{reply_channel, reply_channel::Receiver};
+use tari_comms::peer_manager::NodeId;
 
 const LOG_TARGET: &'static str = "base_layer::wallet::transaction_service::service";
 
@@ -248,7 +249,8 @@ where
                 // Incoming messages from the Comms layer
                 msg = transaction_stream.select_next_some() => {
                     let (origin_public_key, inner_msg) = msg.into_origin_and_inner();
-                    let result  = self.accept_transaction(origin_public_key, inner_msg).await.or_else(|err| {
+                    let origin_node_id = NodeId::from_key(&origin_public_key).unwrap();
+                    let result  = self.accept_transaction(origin_node_id, inner_msg).await.or_else(|err| {
                         error!(target: LOG_TARGET, "Failed to handle incoming message: {:?}", err);
                         Err(err)
                     });
@@ -264,7 +266,8 @@ where
                  // Incoming messages from the Comms layer
                 msg = transaction_reply_stream.select_next_some() => {
                     let (origin_public_key, inner_msg) = msg.into_origin_and_inner();
-                    let result = self.accept_recipient_reply(origin_public_key, inner_msg, &mut broadcast_timeout_futures).await.or_else(|err| {
+                    let origin_node_id = NodeId::from_key(&origin_public_key).unwrap();
+                    let result = self.accept_recipient_reply(origin_node_id, inner_msg, &mut broadcast_timeout_futures).await.or_else(|err| {
                         error!(target: LOG_TARGET, "Failed to handle incoming message: {:?}", err);
                         Err(err)
                     });
@@ -280,7 +283,8 @@ where
                // Incoming messages from the Comms layer
                 msg = transaction_finalized_stream.select_next_some() => {
                     let (origin_public_key, inner_msg) = msg.into_origin_and_inner();
-                    let result = self.accept_finalized_transaction(origin_public_key, inner_msg, &mut broadcast_timeout_futures).await.or_else(|err| {
+                    let origin_node_id = NodeId::from_key(&origin_public_key).unwrap();
+                    let result = self.accept_finalized_transaction(origin_node_id, inner_msg, &mut broadcast_timeout_futures).await.or_else(|err| {
                         error!(target: LOG_TARGET, "Failed to handle incoming message: {:?}", err);
                         Err(err)
                     });
@@ -359,8 +363,8 @@ where
     ) -> Result<TransactionServiceResponse, TransactionServiceError>
     {
         match request {
-            TransactionServiceRequest::SendTransaction((dest_pubkey, amount, fee_per_gram, message)) => self
-                .send_transaction(dest_pubkey, amount, fee_per_gram, message, discovery_process_futures)
+            TransactionServiceRequest::SendTransaction((dest_node_id, amount, fee_per_gram, message)) => self
+                .send_transaction(dest_node_id, amount, fee_per_gram, message, discovery_process_futures)
                 .await
                 .map(|_| TransactionServiceResponse::TransactionSent),
             TransactionServiceRequest::GetPendingInboundTransactions => Ok(
@@ -390,8 +394,8 @@ where
                 .set_base_node_public_key(public_key, broadcast_timeout_futures, mined_request_timeout_futures)
                 .await
                 .map(|_| TransactionServiceResponse::BaseNodePublicKeySet),
-            TransactionServiceRequest::ImportUtxo(value, source_public_key, message) => self
-                .add_utxo_import_transaction(value, source_public_key, message)
+            TransactionServiceRequest::ImportUtxo(value, source_node_id, message) => self
+                .add_utxo_import_transaction(value, source_node_id, message)
                 .await
                 .map(|tx_id| TransactionServiceResponse::UtxoImported(tx_id)),
             #[cfg(feature = "test_harness")]
@@ -430,7 +434,7 @@ where
     /// 'fee_per_gram': The amount of fee per transaction gram to be included in transaction
     pub async fn send_transaction(
         &mut self,
-        dest_pubkey: CommsPublicKey,
+        dest_node_id: NodeId,
         amount: MicroTari,
         fee_per_gram: MicroTari,
         message: String,
@@ -452,8 +456,8 @@ where
 
         match self
             .outbound_message_service
-            .send_direct(
-                dest_pubkey.clone(),
+            .send_direct_node_id(
+                dest_node_id.clone(),
                 OutboundEncryption::EncryptForPeer,
                 OutboundDomainMessage::new(TariMessageType::SenderPartialTransaction, proto_message),
             )
@@ -469,7 +473,7 @@ where
                 let tx_id_clone = tx_id.clone();
                 let outbound_tx_clone = OutboundTransaction {
                     tx_id,
-                    destination_public_key: dest_pubkey.clone(),
+                    destination_node_id: dest_node_id.clone(),
                     amount,
                     fee: sender_protocol.get_fee_amount()?,
                     sender_protocol: sender_protocol.clone(),
@@ -487,7 +491,7 @@ where
         self.db
             .add_pending_outbound_transaction(tx_id, OutboundTransaction {
                 tx_id,
-                destination_public_key: dest_pubkey.clone(),
+                destination_node_id: dest_node_id.clone(),
                 amount,
                 fee: sender_protocol.get_fee_amount()?,
                 sender_protocol,
@@ -498,7 +502,7 @@ where
 
         info!(
             target: LOG_TARGET,
-            "Transaction with TX_ID = {} sent to {}", tx_id, dest_pubkey
+            "Transaction with TX_ID = {} sent to {}", tx_id, dest_node_id
         );
 
         Ok(())
@@ -509,7 +513,7 @@ where
     /// 'recipient_reply' - The public response from a recipient with data required to complete the transaction
     pub async fn accept_recipient_reply(
         &mut self,
-        source_pubkey: CommsPublicKey,
+        source_node_id: NodeId,
         recipient_reply: proto::RecipientSignedMessage,
         broadcast_timeout_futures: &mut FuturesUnordered<BoxFuture<'static, TxId>>,
     ) -> Result<(), TransactionServiceError>
@@ -540,8 +544,8 @@ where
 
         let completed_transaction = CompletedTransaction {
             tx_id: tx_id.clone(),
-            source_public_key: self.node_identity.public_key().clone(),
-            destination_public_key: outbound_tx.destination_public_key,
+            source_node_id: self.node_identity.node_id().clone(),
+            destination_node_id: outbound_tx.destination_node_id,
             amount: outbound_tx.amount,
             fee: outbound_tx.fee,
             transaction: tx.clone(),
@@ -563,8 +567,8 @@ where
         };
 
         self.outbound_message_service
-            .send_direct(
-                source_pubkey.clone(),
+            .send_direct_node_id(
+                source_node_id.clone(),
                 OutboundEncryption::EncryptForPeer,
                 OutboundDomainMessage::new(TariMessageType::TransactionFinalized, finalized_transaction_message),
             )
@@ -587,7 +591,7 @@ where
     /// 'sender_message' - Message from a sender containing the setup of the transaction being sent to you
     pub async fn accept_transaction(
         &mut self,
-        source_pubkey: CommsPublicKey,
+        source_node_id: NodeId,
         sender_message: proto::TransactionSenderMessage,
     ) -> Result<(), TransactionServiceError>
     {
@@ -623,8 +627,8 @@ where
             let tx_id = recipient_reply.tx_id;
             let proto_message: proto::RecipientSignedMessage = recipient_reply.into();
             self.outbound_message_service
-                .send_direct(
-                    source_pubkey.clone(),
+                .send_direct_node_id(
+                    source_node_id.clone(),
                     OutboundEncryption::EncryptForPeer,
                     OutboundDomainMessage::new(TariMessageType::ReceiverPartialTransactionReply, proto_message),
                 )
@@ -633,7 +637,7 @@ where
             // Otherwise add it to our pending transaction list and return reply
             let inbound_transaction = InboundTransaction {
                 tx_id,
-                source_public_key: source_pubkey.clone(),
+                source_node_id: source_node_id.clone(),
                 amount,
                 receiver_protocol: rtp.clone(),
                 message: data.message,
@@ -645,7 +649,7 @@ where
 
             info!(
                 target: LOG_TARGET,
-                "Transaction with TX_ID = {} received from {}. Reply Sent", tx_id, source_pubkey,
+                "Transaction with TX_ID = {} received from {}. Reply Sent", tx_id, source_node_id,
             );
 
             self.event_publisher
@@ -662,7 +666,7 @@ where
     /// 'sender_message' - Message from a sender containing the setup of the transaction being sent to you
     pub async fn accept_finalized_transaction(
         &mut self,
-        source_pubkey: CommsPublicKey,
+        source_node_id: NodeId,
         finalized_transaction: proto::TransactionFinalizedMessage,
         broadcast_timeout_futures: &mut FuturesUnordered<BoxFuture<'static, TxId>>,
     ) -> Result<(), TransactionServiceError>
@@ -683,7 +687,7 @@ where
             target: LOG_TARGET,
             "Finalized Transaction with TX_ID = {} received from {}",
             tx_id,
-            source_pubkey.clone()
+            source_node_id.clone()
         );
 
         let inbound_tx = self
@@ -698,7 +702,7 @@ where
                 e
             })?;
 
-        if inbound_tx.source_public_key != source_pubkey {
+        if inbound_tx.source_node_id != source_node_id {
             error!(
                 target: LOG_TARGET,
                 "Finalized transaction Source Public Key does not correspond to stored value"
@@ -723,8 +727,8 @@ where
 
         let completed_transaction = CompletedTransaction {
             tx_id: tx_id.clone(),
-            source_public_key: source_pubkey.clone(),
-            destination_public_key: self.node_identity.public_key().clone(),
+            source_node_id: source_node_id.clone(),
+            destination_node_id: self.node_identity.node_id().clone(),
             amount: inbound_tx.amount,
             fee: transaction.body.get_total_fee(),
             transaction: transaction.clone(),
@@ -746,7 +750,7 @@ where
             target: LOG_TARGET,
             "Inbound Transaction with TX_ID = {} from {} moved to Completed Transactions",
             tx_id,
-            source_pubkey.clone()
+            source_node_id.clone()
         );
 
         self.broadcast_completed_transaction_to_mempool(tx_id, broadcast_timeout_futures)
@@ -830,8 +834,8 @@ where
         self.db
             .complete_coinbase_transaction(tx_id, CompletedTransaction {
                 tx_id,
-                source_public_key: self.node_identity.public_key().clone(),
-                destination_public_key: self.node_identity.public_key().clone(),
+                source_node_id: self.node_identity.node_id().clone(),
+                destination_node_id: self.node_identity.node_id().clone(),
                 amount: coinbase_tx.amount,
                 fee: MicroTari::from(0),
                 transaction: completed_transaction,
@@ -1242,7 +1246,7 @@ where
     pub async fn add_utxo_import_transaction(
         &mut self,
         value: MicroTari,
-        source_public_key: CommsPublicKey,
+        source_node_id: NodeId,
         message: String,
     ) -> Result<TxId, TransactionServiceError>
     {
@@ -1251,8 +1255,8 @@ where
             .add_utxo_import_transaction(
                 tx_id.clone(),
                 value,
-                source_public_key,
-                self.node_identity.public_key().clone(),
+                source_node_id,
+                self.node_identity.node_id().clone(),
                 message,
             )
             .await?;
@@ -1341,7 +1345,7 @@ where
         &mut self,
         tx_id: TxId,
         amount: MicroTari,
-        source_public_key: CommsPublicKey,
+        source_node_id: NodeId,
     ) -> Result<(), TransactionServiceError>
     {
         use crate::output_manager_service::{
@@ -1397,7 +1401,7 @@ where
 
         let inbound_transaction = InboundTransaction {
             tx_id,
-            source_public_key,
+            source_node_id,
             amount,
             receiver_protocol: rtp,
             message: "".to_string(),
@@ -1430,8 +1434,8 @@ where
 
         let completed_transaction = CompletedTransaction {
             tx_id: tx_id.clone(),
-            source_public_key: found_tx.source_public_key.clone(),
-            destination_public_key: self.node_identity.public_key().clone(),
+            source_node_id: found_tx.source_node_id.clone(),
+            destination_node_id: self.node_identity.node_id().clone(),
             amount: found_tx.amount,
             fee: MicroTari::from(2000), // a placeholder fee for this test function
             transaction: Transaction::new(Vec::new(), Vec::new(), Vec::new(), BlindingFactor::default()),
@@ -1509,7 +1513,7 @@ async fn transaction_send_discovery_process_completion<TBackend: TransactionBack
             target: LOG_TARGET,
             "Transaction with TX_ID = {} sent to {} after Discovery process completed",
             tx_id,
-            updated_outbound_tx.destination_public_key.clone()
+            updated_outbound_tx.destination_node_id.clone()
         );
     }
 

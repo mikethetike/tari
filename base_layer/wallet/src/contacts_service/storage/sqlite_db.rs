@@ -34,8 +34,8 @@ use diesel::{
     SqliteConnection,
 };
 use std::convert::TryFrom;
-use tari_core::transactions::types::PublicKey;
 use tari_crypto::tari_utilities::ByteArray;
+use tari_comms::peer_manager::NodeId;
 
 /// A Sqlite backend for the Output Manager Service. The Backend is accessed via a connection pool to the Sqlite file.
 pub struct ContactsServiceSqliteDatabase {
@@ -113,7 +113,7 @@ impl ContactsBackend for ContactsServiceSqliteDatabase {
 #[derive(Clone, Debug, Queryable, Insertable, PartialEq)]
 #[table_name = "contacts"]
 struct ContactSql {
-    public_key: Vec<u8>,
+    node_id: Vec<u8>,
     alias: String,
 }
 
@@ -139,12 +139,12 @@ impl ContactSql {
 
     /// Find a particular Contact, if it exists
     pub fn find(
-        public_key: &Vec<u8>,
+        node_id: &Vec<u8>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ContactSql, ContactsServiceStorageError>
     {
         Ok(contacts::table
-            .filter(contacts::public_key.eq(public_key))
+            .filter(contacts::node_id.eq(node_id))
             .first::<ContactSql>(conn)?)
     }
 
@@ -154,7 +154,7 @@ impl ContactSql {
     ) -> Result<(), ContactsServiceStorageError>
     {
         let num_deleted =
-            diesel::delete(contacts::table.filter(contacts::public_key.eq(&self.public_key))).execute(conn)?;
+            diesel::delete(contacts::table.filter(contacts::node_id.eq(&self.node_id))).execute(conn)?;
 
         if num_deleted == 0 {
             return Err(ContactsServiceStorageError::ValuesNotFound);
@@ -169,7 +169,7 @@ impl ContactSql {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ContactSql, ContactsServiceStorageError>
     {
-        let num_updated = diesel::update(contacts::table.filter(contacts::public_key.eq(&self.public_key)))
+        let num_updated = diesel::update(contacts::table.filter(contacts::node_id.eq(&self.node_id)))
             .set(updated_contact)
             .execute(conn)?;
 
@@ -179,7 +179,7 @@ impl ContactSql {
             ));
         }
 
-        Ok(ContactSql::find(&self.public_key, conn)?)
+        Ok(ContactSql::find(&self.node_id, conn)?)
     }
 }
 
@@ -189,7 +189,7 @@ impl TryFrom<ContactSql> for Contact {
 
     fn try_from(o: ContactSql) -> Result<Self, Self::Error> {
         Ok(Self {
-            public_key: PublicKey::from_vec(&o.public_key).map_err(|_| ContactsServiceStorageError::ConversionError)?,
+            node_id: NodeId::from_vec(&o.node_id).map_err(|_| ContactsServiceStorageError::ConversionError)?,
             alias: o.alias,
         })
     }
@@ -199,7 +199,7 @@ impl TryFrom<ContactSql> for Contact {
 impl From<Contact> for ContactSql {
     fn from(o: Contact) -> Self {
         Self {
-            public_key: o.public_key.to_vec(),
+            node_id: o.node_id.to_vec(),
             alias: o.alias,
         }
     }
@@ -226,6 +226,7 @@ mod test {
         tari_utilities::ByteArray,
     };
     use tari_test_utils::{paths::with_temp_dir, random::string};
+    use tari_comms::peer_manager::NodeId;
 
     #[test]
     fn test_crud() {
@@ -250,9 +251,10 @@ mod test {
             let mut contacts = Vec::new();
             for i in 0..names.len() {
                 let pub_key = PublicKey::from_secret_key(&PrivateKey::random(&mut OsRng));
+                let node_id = NodeId::from_key(&pub_key).unwrap();
                 contacts.push(Contact {
                     alias: names[i].clone(),
-                    public_key: pub_key,
+                    node_id,
                 });
                 ContactSql::from(contacts[i].clone()).commit(&conn).unwrap();
             }
@@ -268,7 +270,7 @@ mod test {
 
             assert_eq!(
                 contacts[1],
-                Contact::try_from(ContactSql::find(&contacts[1].public_key.to_vec(), &conn).unwrap()).unwrap()
+                Contact::try_from(ContactSql::find(&contacts[1].node_id.to_vec(), &conn).unwrap()).unwrap()
             );
 
             ContactSql::from(contacts[0].clone()).delete(&conn).unwrap();
@@ -281,7 +283,7 @@ mod test {
                 .find(|v| v == &&ContactSql::from(contacts[0].clone()))
                 .is_none());
 
-            let c = ContactSql::find(&contacts[1].public_key.to_vec(), &conn).unwrap();
+            let c = ContactSql::find(&contacts[1].node_id.to_vec(), &conn).unwrap();
             c.update(
                 UpdateContact {
                     alias: Some("Fred".to_string()),
@@ -290,7 +292,7 @@ mod test {
             )
             .unwrap();
 
-            let c_updated = ContactSql::find(&contacts[1].public_key.to_vec(), &conn).unwrap();
+            let c_updated = ContactSql::find(&contacts[1].node_id.to_vec(), &conn).unwrap();
             assert_eq!(c_updated.alias, "Fred".to_string());
         });
     }

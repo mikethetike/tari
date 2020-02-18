@@ -418,7 +418,7 @@ impl Ord for SentTextMessage {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Contact {
     pub screen_name: String,
-    pub pub_key: CommsPublicKey,
+    pub node_id: NodeId,
     pub address: NetAddress,
 }
 
@@ -426,16 +426,16 @@ pub struct Contact {
 #[derive(Queryable, Insertable)]
 #[table_name = "contacts"]
 struct ContactSql {
-    pub pub_key: String,
+    pub node_id: String,
     pub screen_name: String,
     pub address: String,
 }
 
 impl Contact {
-    pub fn new(screen_name: String, pub_key: CommsPublicKey, address: NetAddress) -> Contact {
+    pub fn new(screen_name: String, node_id: NodeId, address: NetAddress) -> Contact {
         Contact {
             screen_name,
-            pub_key,
+            node_id,
             address,
         }
     }
@@ -461,13 +461,13 @@ impl Contact {
     }
 
     pub fn find(
-        pub_key: &CommsPublicKey,
+        node_id: NodeId,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Contact, TextMessageError>
     {
         Ok(Contact::try_from(
             contacts::table
-                .filter(contacts::pub_key.eq(pub_key.to_hex()))
+                .filter(contacts::node_id.eq(node_id.to_hex()))
                 .first::<ContactSql>(conn)?,
         )?)
     }
@@ -478,7 +478,7 @@ impl Contact {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Contact, TextMessageError>
     {
-        let num_updated = diesel::update(contacts::table.filter(contacts::pub_key.eq(&self.pub_key.to_hex())))
+        let num_updated = diesel::update(contacts::table.filter(contacts::node_id.eq(&self.node_id.to_hex())))
             .set(UpdateContactSql::from(updated_contact))
             .execute(conn)?;
 
@@ -486,12 +486,12 @@ impl Contact {
             return Err(TextMessageError::DatabaseUpdateError);
         }
 
-        Ok(Contact::find(&self.pub_key, conn)?)
+        Ok(Contact::find(&self.node_id, conn)?)
     }
 
     pub fn delete(&self, conn: &PooledConnection<ConnectionManager<SqliteConnection>>) -> Result<(), TextMessageError> {
         let num_deleted =
-            diesel::delete(contacts::table.filter(contacts::pub_key.eq(&self.pub_key.to_hex()))).execute(conn)?;
+            diesel::delete(contacts::table.filter(contacts::node_id.eq(&self.node_id.to_hex()))).execute(conn)?;
         if num_deleted == 0 {
             return Err(TextMessageError::ContactNotFound);
         }
@@ -503,7 +503,7 @@ impl From<Contact> for ContactSql {
     fn from(c: Contact) -> ContactSql {
         ContactSql {
             screen_name: c.screen_name,
-            pub_key: c.pub_key.to_hex(),
+            node_id: c.node_id.to_hex(),
             address: format!("{}", c.address),
         }
     }
@@ -515,7 +515,7 @@ impl TryFrom<ContactSql> for Contact {
     fn try_from(c: ContactSql) -> Result<Self, Self::Error> {
         Ok(Contact {
             screen_name: c.screen_name,
-            pub_key: CommsPublicKey::from_hex(c.pub_key.as_str())?,
+            node_id: NodeId::from_hex(c.node_id.as_str())?,
             address: c.address.parse()?,
         })
     }

@@ -41,6 +41,8 @@ use tari_wallet::{
 };
 use tempdir::TempDir;
 use tokio::runtime::Runtime;
+use tari_crypto::ristretto::{RistrettoSecretKey, RistrettoPublicKey};
+use tari_comms::peer_manager::NodeId;
 
 pub fn setup_contacts_service<T: ContactsBackend + 'static>(
     runtime: &mut Runtime,
@@ -66,11 +68,11 @@ pub fn test_memory_database_crud() {
     let db = ContactsDatabase::new(ContactsServiceMemoryDatabase::new());
     let mut contacts = Vec::new();
     for i in 0..5 {
-        let (_secret_key, public_key) = PublicKey::random_keypair(&mut OsRng);
-
+        let (_secret_key, public_key): (RistrettoSecretKey,RistrettoPublicKey) = PublicKey::random_keypair(&mut OsRng);
+        let node_id = NodeId::from_key(&public_key).unwrap();
         contacts.push(Contact {
             alias: random_string(8),
-            public_key,
+            node_id,
         });
 
         runtime.block_on(db.upsert_contact(contacts[i].clone())).unwrap();
@@ -80,28 +82,28 @@ pub fn test_memory_database_crud() {
     assert_eq!(contacts, got_contacts);
 
     let contact = runtime
-        .block_on(db.get_contact(contacts[0].public_key.clone()))
+        .block_on(db.get_contact(contacts[0].node_id.clone()))
         .unwrap();
     assert_eq!(contact, contacts[0]);
 
     let (_secret_key, public_key) = PublicKey::random_keypair(&mut OsRng);
-
-    let contact = runtime.block_on(db.get_contact(public_key.clone()));
+    let node_id = NodeId::from_key(&public_key).unwrap();
+    let contact = runtime.block_on(db.get_contact(node_id.clone()));
     assert_eq!(
         contact,
         Err(ContactsServiceStorageError::ValueNotFound(DbKey::Contact(
-            public_key.clone()
+            node_id.clone()
         )))
     );
     assert_eq!(
-        runtime.block_on(db.remove_contact(public_key.clone())),
+        runtime.block_on(db.remove_contact(node_id.clone())),
         Err(ContactsServiceStorageError::ValueNotFound(DbKey::Contact(
-            public_key.clone()
+            node_id.clone()
         )))
     );
 
     let _ = runtime
-        .block_on(db.remove_contact(contacts[0].public_key.clone()))
+        .block_on(db.remove_contact(contacts[0].node_id.clone()))
         .unwrap();
     contacts.remove(0);
     let got_contacts = runtime.block_on(db.get_contacts()).unwrap();
@@ -115,11 +117,11 @@ pub fn test_contacts_service<T: ContactsBackend + 'static>(backend: T) {
 
     let mut contacts = Vec::new();
     for i in 0..5 {
-        let (_secret_key, public_key) = PublicKey::random_keypair(&mut OsRng);
-
+        let (_secret_key, public_key): (RistrettoSecretKey,RistrettoPublicKey) = PublicKey::random_keypair(&mut OsRng);
+        let node_id = NodeId::from_key(&public_key).unwrap();
         contacts.push(Contact {
             alias: random_string(8),
-            public_key,
+            node_id,
         });
 
         runtime
@@ -131,28 +133,28 @@ pub fn test_contacts_service<T: ContactsBackend + 'static>(backend: T) {
     assert_eq!(contacts, got_contacts);
 
     let contact = runtime
-        .block_on(contacts_service.get_contact(contacts[0].public_key.clone()))
+        .block_on(contacts_service.get_contact(contacts[0].node_id.clone()))
         .unwrap();
     assert_eq!(contact, contacts[0]);
 
-    let (_secret_key, public_key) = PublicKey::random_keypair(&mut OsRng);
-
-    let contact = runtime.block_on(contacts_service.get_contact(public_key.clone()));
+    let (_secret_key, public_key): (RistrettoSecretKey,RistrettoPublicKey) = PublicKey::random_keypair(&mut OsRng);
+    let node_id = NodeId::from_key(&public_key).unwrap();
+    let contact = runtime.block_on(contacts_service.get_contact(node_id.clone()));
     assert_eq!(
         contact,
         Err(ContactsServiceError::ContactsServiceStorageError(
-            ContactsServiceStorageError::ValueNotFound(DbKey::Contact(public_key.clone()))
+            ContactsServiceStorageError::ValueNotFound(DbKey::Contact(node_id.clone()))
         ))
     );
     assert_eq!(
-        runtime.block_on(contacts_service.remove_contact(public_key.clone())),
+        runtime.block_on(contacts_service.remove_contact(node_id.clone())),
         Err(ContactsServiceError::ContactsServiceStorageError(
-            ContactsServiceStorageError::ValueNotFound(DbKey::Contact(public_key.clone()))
+            ContactsServiceStorageError::ValueNotFound(DbKey::Contact(node_id.clone()))
         ))
     );
 
     let _ = runtime
-        .block_on(contacts_service.remove_contact(contacts[0].public_key.clone()))
+        .block_on(contacts_service.remove_contact(contacts[0].node_id.clone()))
         .unwrap();
     contacts.remove(0);
     let got_contacts = runtime.block_on(contacts_service.get_contacts()).unwrap();
@@ -166,7 +168,7 @@ pub fn test_contacts_service<T: ContactsBackend + 'static>(backend: T) {
         .block_on(contacts_service.upsert_contact(updated_contact.clone()))
         .unwrap();
     let new_contact = runtime
-        .block_on(contacts_service.get_contact(updated_contact.public_key))
+        .block_on(contacts_service.get_contact(updated_contact.node_id))
         .unwrap();
 
     assert_eq!(new_contact.alias, updated_contact.alias);
