@@ -157,6 +157,7 @@ use tari_wallet::{
     wallet::WalletConfig,
 };
 use tokio::runtime::Runtime;
+use tari_comms::peer_manager::NodeId;
 
 pub type TariWallet = tari_wallet::wallet::Wallet<
     WalletSqliteDatabase,
@@ -495,6 +496,54 @@ pub unsafe extern "C" fn public_key_to_emoji(pk: *mut TariPublicKey, error_out: 
     let emoji = EmojiId::from_pubkey(&(*pk));
     result = CString::new(emoji.as_str()).unwrap();
     CString::into_raw(result)
+}
+
+/// Creates a TariNodeId from a TariPublicKey
+///
+/// ## Arguments
+/// `pk` - The pointer to a TariPublicKey
+/// `error_out` - Pointer to an int which will be modified to an error code should one occur, may not be null. Functions
+/// as an out parameter.
+///
+/// ## Returns
+/// `*mut TariNodeId` - Returns a pointer to a TariNodeId. Note that it returns empty
+/// if pk is null or if there was an error creating the TariNodeId from TariPublicKey
+#[no_mangle]
+pub unsafe extern "C" fn public_key_to_node_id(pk: *mut TariPublicKey, error_out: *mut c_int) -> *mut TariNodeId {
+    let mut error = 0;
+    let mut result = CString::new("").unwrap();
+    ptr::swap(error_out, &mut error as *mut c_int);
+    if pk.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("key".to_string())).code;
+        ptr::swap(error_out, &mut error as *mut c_int);
+        return ptr::null_mut();
+    }
+
+    let node_id = NodeId::from_key(&(*pk)).unwrap();
+    Box::into_raw(Box::new(node_id))
+}
+
+
+#[no_mangle]
+pub unsafe extern "C" fn node_id_get_bytes(node_id: *mut TariNodeId, error_out: *mut c_int) -> *mut ByteVector {
+    let mut error = 0;
+    ptr::swap(error_out, &mut error as *mut c_int);
+    let mut bytes = ByteVector(Vec::new());
+    if node_id.is_null() {
+        error = LibWalletError::from(InterfaceError::NullError("node_id".to_string())).code;
+        ptr::swap(error_out, &mut error as *mut c_int);
+        return ptr::null_mut();
+    } else {
+        bytes.0 = (*node_id).to_vec();
+    }
+    Box::into_raw(Box::new(bytes))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn node_id_destroy(node: *mut TariNodeId) {
+    if !node.is_null() {
+        Box::from_raw(node);
+    }
 }
 /// -------------------------------------------------------------------------------------------- ///
 
@@ -3316,19 +3365,20 @@ mod test {
             let test_str = "Test Contact";
             let test_contact_str = CString::new(test_str).unwrap();
             let test_contact_alias: *const c_char = CString::into_raw(test_contact_str) as *const c_char;
-            let test_contact = contact_create(test_contact_alias, test_contact_public_key, error_ptr);
+            let contact_node_id = public_key_to_node_id(test_contact_public_key, error_ptr);
+            let test_contact = contact_create(test_contact_alias, contact_node_id, error_ptr);
             let alias = contact_get_alias(test_contact, error_ptr);
             let alias_string = CString::from_raw(alias).to_str().unwrap().to_owned();
             assert_eq!(alias_string, test_str);
             let contact_node = contact_get_node_id(test_contact, error_ptr);
-            let contact_node_bytes = public_key_get_bytes(contact_node, error_ptr);
+            let contact_node_bytes = node_id_get_bytes(contact_node, error_ptr);
             let contact_bytes_len = byte_vector_get_length(contact_node_bytes, error_ptr);
             assert_eq!(contact_bytes_len, 32);
             contact_destroy(test_contact);
             public_key_destroy(test_contact_public_key);
             private_key_destroy(test_contact_private_key);
             string_destroy(test_contact_alias as *mut c_char);
-            byte_vector_destroy(contact_key_bytes);
+            byte_vector_destroy(contact_node_bytes);
         }
     }
 
@@ -3342,7 +3392,8 @@ mod test {
             let test_str = "Test Contact";
             let test_contact_str = CString::new(test_str).unwrap();
             let test_contact_alias: *const c_char = CString::into_raw(test_contact_str) as *const c_char;
-            let mut _test_contact = contact_create(ptr::null_mut(), test_contact_public_key, error_ptr);
+            let test_contact_node_id = public_key_to_node_id(test_contact_public_key, error_ptr);
+            let mut _test_contact = contact_create(ptr::null_mut(), test_contact_node_id, error_ptr);
             assert_eq!(
                 error,
                 LibWalletError::from(InterfaceError::NullError("alias_ptr".to_string())).code
@@ -3482,7 +3533,8 @@ mod test {
             let test_contact_public_key = public_key_from_private_key(test_contact_private_key, error_ptr);
             let test_contact_str = CString::new("Test Contact").unwrap();
             let test_contact_alias: *const c_char = CString::into_raw(test_contact_str) as *const c_char;
-            let test_contact = contact_create(test_contact_alias, test_contact_public_key, error_ptr);
+            let test_contact_node_id = public_key_to_node_id(test_contact_public_key, error_ptr);
+            let test_contact = contact_create(test_contact_alias, test_contact_node_id, error_ptr);
             let contact_added = wallet_upsert_contact(alice_wallet, test_contact, error_ptr);
             assert_eq!(contact_added, true);
             let contact_removed = wallet_remove_contact(alice_wallet, test_contact, error_ptr);
@@ -3586,12 +3638,12 @@ mod test {
             let public_key_base_node = public_key_from_private_key(secret_key_base_node.clone(), error_ptr);
             let utxo_message_str = CString::new("UTXO Import").unwrap();
             let utxo_message: *const c_char = CString::into_raw(utxo_message_str) as *const c_char;
-
+            let node_id_base_node = public_key_to_node_id(public_key_base_node, error_ptr);
             let utxo_tx_id = wallet_import_utxo(
                 alice_wallet,
                 utxo_value,
                 utxo_spending_key,
-                public_key_base_node,
+                node_id_base_node,
                 utxo_message,
                 error_ptr,
             );
