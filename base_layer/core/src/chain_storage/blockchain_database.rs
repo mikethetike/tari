@@ -247,7 +247,7 @@ where T: BlockchainBackend
             db: Arc::new(db),
             validators: None,
         };
-        if let None = blockchain_db.get_height()? {
+        if let None = blockchain_db.db.fetch_last_header()/*get_height()*/? {
             let genesis_block = consensus_manager.get_genesis_block();
             let genesis_block_hash = genesis_block.hash();
             blockchain_db.store_new_block(genesis_block)?;

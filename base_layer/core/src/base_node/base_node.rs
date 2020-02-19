@@ -128,8 +128,9 @@ impl<B: BlockchainBackend> BaseNodeStateMachine<B> {
     /// This clones the receiver end of the channel and gives out a copy to the caller
     /// This allows multiple subscribers to this channel by only keeping one channel and cloning the receiver for every
     /// caller.
-    pub fn get_state_change_event(&self) -> Fuse<Subscriber<BaseNodeState>> {
-        self.event_receiver.clone().fuse()
+    pub fn get_state_change_event(&self) -> Subscriber<BaseNodeState> {
+        debug!(target: LOG_TARGET, "clone channel");
+        self.event_receiver.clone()
     }
 
     /// Start the base node runtime.
@@ -138,7 +139,9 @@ impl<B: BlockchainBackend> BaseNodeStateMachine<B> {
         let mut state = Starting(states::Starting);
         let mut shared_state = self;
         loop {
-            let _ = shared_state.event_sender.send(state.clone()).await;
+            let debug = shared_state.event_sender.send(state.clone()).await;
+
+            debug!(target: LOG_TARGET, "write state1  {:?}", debug);
             let next_event = match &mut state {
                 Starting(s) => s.next_event(&mut shared_state).await,
                 InitialSync(s) => s.next_event(&mut shared_state).await,
@@ -146,6 +149,8 @@ impl<B: BlockchainBackend> BaseNodeStateMachine<B> {
                 Listening(s) => s.next_event(&mut shared_state).await,
                 Shutdown(_) => break,
             };
+            let debug = shared_state.event_sender.send(state.clone()).await;
+            debug!(target: LOG_TARGET, "write state2  {:?}", debug);
             debug!(
                 target: LOG_TARGET,
                 "=== Base Node event in State [{}]:  {:?}", state, next_event

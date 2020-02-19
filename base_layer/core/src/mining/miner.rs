@@ -22,7 +22,10 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::{
-    base_node::comms_interface::{BlockEvent, LocalNodeCommsInterface},
+    base_node::{
+        comms_interface::{BlockEvent, LocalNodeCommsInterface},
+        states::BaseNodeState,
+    },
     blocks::{Block, NewBlockTemplate},
     chain_storage::{BlockAddResult, BlockchainBackend},
     consensus::ConsensusManager,
@@ -50,6 +53,7 @@ use std::{
     thread,
     time,
 };
+use tari_broadcast_channel::{bounded, Publisher, Subscriber};
 use tari_crypto::keys::SecretKey;
 use tokio::task::spawn_blocking;
 
@@ -61,6 +65,7 @@ pub struct Miner<B: BlockchainBackend> {
     consensus: ConsensusManager<B>,
     node_interface: LocalNodeCommsInterface,
     utxo_sender: Sender<UnblindedOutput>,
+    state_change_event_rx: Option<Subscriber<BaseNodeState>>,
 }
 
 impl<B: BlockchainBackend> Miner<B> {
@@ -78,6 +83,7 @@ impl<B: BlockchainBackend> Miner<B> {
             received_new_block_flag: Arc::new(AtomicBool::new(false)),
             node_interface: node_interface.clone(),
             utxo_sender,
+            state_change_event_rx: None,
         }
     }
 
@@ -89,8 +95,18 @@ impl<B: BlockchainBackend> Miner<B> {
         receiver
     }
 
+    /// This provides a tari_broadcast_channel to the miner so that it can subscribe to the state machine.
+    /// The state machine will publish state changes here. The miner is only interested to know when the state machine
+    /// transitions to listing state. This means that the miner has moved from some disconnected state to up to date
+    /// and the miner can ask for a new block to mine upon.
+    pub fn subscribe_to_state_change(&mut self, state_change_event_rx: Subscriber<BaseNodeState>) {
+        debug!(target: LOG_TARGET, "added rx to event state");
+        self.state_change_event_rx = Some(state_change_event_rx);
+    }
+
     /// Async function to mine a block
     async fn mining(&mut self) -> Result<(), MinerError> {
+        debug!(target: LOG_TARGET, "start mining thread");
         // Lets make sure its set to mine
         while !self.kill_flag.load(Ordering::Relaxed) {
             while !self.received_new_block_flag.load(Ordering::Relaxed) {
@@ -101,10 +117,11 @@ impl<B: BlockchainBackend> Miner<B> {
             }
             let flag = self.received_new_block_flag.clone();
             flag.store(false, Ordering::Relaxed);
-
+            debug!(target: LOG_TARGET, "Miner asking for new block.");
             let mut block_template = self.get_block_template().await?;
             let output = self.add_coinbase(&mut block_template)?;
             let mut block = self.get_block(block_template).await?;
+            debug!(target: LOG_TARGET, "Miner got new block.");
             let difficulty = self.get_req_difficulty().await?;
             let new_block_event_flag = self.received_new_block_flag.clone();
             let kill = self.kill_flag.clone();
@@ -128,6 +145,8 @@ impl<B: BlockchainBackend> Miner<B> {
                     .map_err(|e| MinerError::CommunicationError(e.to_string()))?;
             }
         }
+
+        debug!(target: LOG_TARGET, "closing mining thread");
         Ok(())
     }
 
@@ -135,24 +154,40 @@ impl<B: BlockchainBackend> Miner<B> {
     /// restarts/starts to mine.
     pub async fn mine(mut self) {
         let flag = self.received_new_block_flag.clone();
-        let mut block_event = self.node_interface.clone().get_block_event_stream_fused();
+        let block_event = self.node_interface.clone().get_block_event_stream_fused();
+        let state_event = self.state_change_event_rx.take().expect("todo").fuse();
         let t_miner = self.mining().fuse();
+        pin_mut!(block_event);
+        pin_mut!(state_event);
         pin_mut!(t_miner);
         loop {
+            debug!(target: LOG_TARGET, "starting mine select");
             futures::select! {
                 msg = block_event.select_next_some() => {
-                    match (*msg).clone() {
+                debug!(target: LOG_TARGET, "new block event");
+                    /*match (*msg).clone() {
                         BlockEvent::Verified((_, result)) => {
                             if result == BlockAddResult::Ok{
                                 flag.store(true, Ordering::Relaxed);
-                            }
+                            };
                         },
                         _ => (),
-                    }
+                    };*/
                 },
-                (_) = t_miner => break
-            }
+                msg1 = state_event.select_next_some() => {
+                    debug!(target: LOG_TARGET, "state engine state change");
+                    debug!(target: LOG_TARGET, "state {:?}",(*msg1).clone() );
+                   /* match (*msg1).clone() {
+                        BaseNodeState::Listening(_) => {
+                            flag.store(true, Ordering::Relaxed);
+                        },
+                        _ => (),
+                    };*/
+                },
+                (_) = t_miner => break,
+            };
         }
+        debug!(target: LOG_TARGET, "break select loop");
     }
 
     /// function, temp use genesis block as template

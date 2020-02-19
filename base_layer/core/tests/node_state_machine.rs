@@ -135,7 +135,7 @@ fn test_event_channel() {
     runtime.spawn(async move {
         alice_state_machine.run().await;
     });
-    let bob_db = bob_node.blockchain_db;
+    let bob_db = bob_node.blockchain_db
     let mut bob_local_nci = bob_node.local_nci;
 
     runtime.block_on(async {
@@ -145,7 +145,7 @@ fn test_event_channel() {
         let prev_block = bob_db.calculate_mmr_roots(chain_block(&prev_block, vec![])).unwrap();
         bob_local_nci.submit_block(prev_block.clone()).await.unwrap();
         assert_eq!(bob_db.get_height(), Ok(Some(2)));
-        let state = rx.select_next_some().await;
+        let state = rx.fuse().select_next_some().await;
         if let BaseNodeState::InitialSync(_) = *state {
             assert!(true);
         } else {
