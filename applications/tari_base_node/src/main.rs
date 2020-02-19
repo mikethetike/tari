@@ -136,7 +136,7 @@ fn main() {
         };
     let flag = node.get_flag();
     // lets run the miner
-    let miner_handle = if true {
+    let miner_handle = if node_config.enable_mining {
         let mut rx = miner.get_utxo_receiver_channel();
         let mut rx_events = node.get_state_change_event();
         miner.subscribe_to_state_change(rx_events);
