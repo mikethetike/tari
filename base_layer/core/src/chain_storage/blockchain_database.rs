@@ -264,15 +264,19 @@ where T: BlockchainBackend
     /// If the metadata values aren't in the database, (e.g. when running a node for the first time),
     /// then log as much and return a reasonable default.
     fn read_metadata(db: &T) -> Result<ChainMetadata, ChainStorageError> {
-        let height = fetch!(meta db, ChainHeight, None);
-        let hash = fetch!(meta db, BestBlock, None);
-        let _work = fetch!(meta db, AccumulatedWork, 0);
+        // Todo fix this as part of issue #1329. This is a temp fix so that it queries the DB every time
+        // let height = fetch!(meta db, ChainHeight, None);
+        // let hash = fetch!(meta db, BestBlock, None);
+        // let _work = fetch!(meta db, AccumulatedWork, 0);
         // Set a default of 2880 blocks (2 days with 1min blocks)
-        let horizon = fetch!(meta db, PruningHorizon, 2880);
+        // let horizon = fetch!(meta db, PruningHorizon, 2880);
+        let last_header = db
+            .fetch_last_header()?
+            .ok_or(ChainStorageError::InvalidOperation("Empty database".to_string()))?;
         Ok(ChainMetadata {
-            height_of_longest_chain: height,
-            best_block: hash,
-            pruning_horizon: horizon,
+            height_of_longest_chain: Some(last_header.height),
+            best_block: Some(last_header.hash()),
+            pruning_horizon: 2880,
         })
     }
 

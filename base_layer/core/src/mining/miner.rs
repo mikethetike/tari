@@ -52,6 +52,7 @@ use std::{
     sync::{atomic::Ordering, Arc},
     thread,
     time,
+    time::Duration,
 };
 use tari_broadcast_channel::{bounded, Publisher, Subscriber};
 use tari_crypto::keys::SecretKey;
@@ -100,7 +101,6 @@ impl<B: BlockchainBackend> Miner<B> {
     /// transitions to listing state. This means that the miner has moved from some disconnected state to up to date
     /// and the miner can ask for a new block to mine upon.
     pub fn subscribe_to_state_change(&mut self, state_change_event_rx: Subscriber<BaseNodeState>) {
-        debug!(target: LOG_TARGET, "added rx to event state");
         self.state_change_event_rx = Some(state_change_event_rx);
     }
 
@@ -110,7 +110,7 @@ impl<B: BlockchainBackend> Miner<B> {
         // Lets make sure its set to mine
         while !self.kill_flag.load(Ordering::Relaxed) {
             while !self.received_new_block_flag.load(Ordering::Relaxed) {
-                thread::sleep(time::Duration::from_millis(100)); // wait for new block event
+                tokio::time::delay_for(Duration::from_millis(100)).await; // wait for new block event
                 if self.kill_flag.load(Ordering::Relaxed) {
                     return Ok(());
                 }
@@ -145,8 +145,6 @@ impl<B: BlockchainBackend> Miner<B> {
                     .map_err(|e| MinerError::CommunicationError(e.to_string()))?;
             }
         }
-
-        debug!(target: LOG_TARGET, "closing mining thread");
         Ok(())
     }
 
@@ -157,37 +155,35 @@ impl<B: BlockchainBackend> Miner<B> {
         let block_event = self.node_interface.clone().get_block_event_stream_fused();
         let state_event = self.state_change_event_rx.take().expect("todo").fuse();
         let t_miner = self.mining().fuse();
+
         pin_mut!(block_event);
         pin_mut!(state_event);
         pin_mut!(t_miner);
         loop {
-            debug!(target: LOG_TARGET, "starting mine select");
             futures::select! {
-                msg = block_event.select_next_some() => {
-                debug!(target: LOG_TARGET, "new block event");
-                    /*match (*msg).clone() {
-                        BlockEvent::Verified((_, result)) => {
-                            if result == BlockAddResult::Ok{
-                                flag.store(true, Ordering::Relaxed);
-                            };
-                        },
-                        _ => (),
-                    };*/
+            msg = block_event.select_next_some() => {
+                match (*msg).clone() {
+                    BlockEvent::Verified((_, result)) => {
+                    if result == BlockAddResult::Ok{
+                        flag.store(true, Ordering::Relaxed);
+                    };
                 },
-                msg1 = state_event.select_next_some() => {
-                    debug!(target: LOG_TARGET, "state engine state change");
-                    debug!(target: LOG_TARGET, "state {:?}",(*msg1).clone() );
-                   /* match (*msg1).clone() {
-                        BaseNodeState::Listening(_) => {
-                            flag.store(true, Ordering::Relaxed);
-                        },
-                        _ => (),
-                    };*/
-                },
-                (_) = t_miner => break,
+                _ => (),
+                }
+            },
+            msg1 = state_event.select_next_some() => {
+                debug!(target: LOG_TARGET, "state engine state change");
+                debug!(target: LOG_TARGET, "state {:?}",(*msg1).clone() );
+                match (*msg1).clone() {
+                    BaseNodeState::Listening(_) => {
+                        flag.store(true, Ordering::Relaxed);
+                    },
+                    _ => (),
+                }
+            },
+            (_) = t_miner => break,
             };
         }
-        debug!(target: LOG_TARGET, "break select loop");
     }
 
     /// function, temp use genesis block as template
