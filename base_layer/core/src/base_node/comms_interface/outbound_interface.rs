@@ -165,6 +165,29 @@ impl OutboundNodeCommsInterface {
         }
     }
 
+    /// Fetch the Headers corresponding to the provided block hashes from remote base nodes.
+    pub async fn fetch_headers_between(
+        &mut self,
+        from_hash: Vec<HashOutput>,
+        to_hash: Option<HashOutput>,
+    ) -> Result<Vec<BlockHeader>, CommsInterfaceError>
+    {
+        let to_hash = to_hash.unwrap_or(HashOutput::new());
+        if let Some(NodeCommsResponse::FetchHeadersAfterResponse(headers)) = self
+            .request_sender
+            .call((
+                NodeCommsRequest::FetchHeadersAfter(from_hash, to_hash),
+                NodeCommsRequestType::Single,
+            ))
+            .await??
+            .first()
+        {
+            Ok(headers.clone())
+        } else {
+            Err(CommsInterfaceError::UnexpectedApiResponse)
+        }
+    }
+
     /// Fetch the UTXOs with the provided hashes from remote base nodes.
     pub async fn fetch_utxos(
         &mut self,
