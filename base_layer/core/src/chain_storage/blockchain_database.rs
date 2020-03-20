@@ -1127,22 +1127,26 @@ fn rewind_to_height<T: BlockchainBackend>(
         .ok_or_else(|| ChainStorageError::InvalidQuery("Blockchain database is empty".into()))?;
     let mut removed_blocks = Vec::<Block>::new();
     if height == chain_height {
-        return Ok(removed_blocks); // Rewind unnecessary, already on correct height
+        debug!(target: LOG_TARGET, "Rewind unnecessary, already on correct height:{}", height);
+        return Ok(removed_blocks);
     }
 
     let steps_back = (chain_height - height) as usize;
-    let mut txn = DbTransaction::new();
+
     for rewind_height in (height + 1)..=chain_height {
-        // Reconstruct block at height and add to orphan block pool
-        let orphaned_block = fetch_block_writeguard(metadata, db, rewind_height)?.block().clone();
+        let curr_height = chain_height - rewind_height;
+
+        let mut txn = DbTransaction::new();
+        debug!(target: LOG_TARGET, "Reconstruct block at height {} and add to orphan block pool", curr_height);
+        let orphaned_block = fetch_block_writeguard(metadata, db, curr_height)?.block().clone();
         removed_blocks.push(orphaned_block.clone());
         txn.insert_orphan(orphaned_block);
 
         // Remove Header and block hash
-        txn.delete(DbKey::BlockHeader(rewind_height)); // Will also delete the blockhash
+        txn.delete(DbKey::BlockHeader(curr_height)); // Will also delete the blockhash
 
         // Remove Kernels
-        fetch_checkpoint_writeguard(metadata, db, MmrTree::Kernel, rewind_height)?
+        fetch_checkpoint_writeguard(metadata, db, MmrTree::Kernel, curr_height)?
             .nodes_added()
             .iter()
             .for_each(|hash_output| {
@@ -1151,7 +1155,7 @@ fn rewind_to_height<T: BlockchainBackend>(
 
         // Remove UTXOs and move STXOs back to UTXO set
         let (nodes_added, nodes_deleted) =
-            fetch_checkpoint_writeguard(metadata, db, MmrTree::Utxo, rewind_height)?.into_parts();
+            fetch_checkpoint_writeguard(metadata, db, MmrTree::Utxo, curr_height)?.into_parts();
         nodes_added.iter().for_each(|hash_output| {
             txn.delete(DbKey::UnspentOutput(hash_output.clone()));
         });
@@ -1162,12 +1166,14 @@ fn rewind_to_height<T: BlockchainBackend>(
                 Ok(())
             })?;
         }
+        // Rewind MMRs
+        txn.rewind_kernel_mmr(1);
+        txn.rewind_utxo_mmr(1);
+        txn.rewind_rp_mmr(1);
+        commit(db, txn)?;
+
     }
-    // Rewind MMRs
-    txn.rewind_kernel_mmr(steps_back);
-    txn.rewind_utxo_mmr(steps_back);
-    txn.rewind_rp_mmr(steps_back);
-    commit(db, txn)?;
+
 
     let last_block = fetch_block_writeguard(metadata, db, height)?.block().clone();
     let pow = ProofOfWork::new_from_difficulty(
