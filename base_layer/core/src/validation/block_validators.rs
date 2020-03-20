@@ -179,6 +179,9 @@ fn check_mmr_roots<B: BlockchainBackend>(block: &Block, db: &RwLockWriteGuard<B>
         calculate_mmr_roots_writeguard(db, template).map_err(|e| ValidationError::CustomError(e.to_string()))?;
     let tmp_header = &tmp_block.header;
     let header = &block.header;
+    debug!(target: LOG_TARGET, "Kernel: {} v {}", header.kernel_mr.to_hex(), tmp_header.kernel_mr.to_hex());
+    debug!(target: LOG_TARGET, "Output: {} v {}", header.output_mr.to_hex(), tmp_header.output_mr.to_hex());
+    debug!(target: LOG_TARGET, "Range Proof: {} v {}", header.range_proof_mr.to_hex(), tmp_header.range_proof_mr.to_hex()`);
     if header.kernel_mr != tmp_header.kernel_mr ||
         header.output_mr != tmp_header.output_mr ||
         header.range_proof_mr != tmp_header.range_proof_mr

@@ -33,6 +33,7 @@ use rand::seq::SliceRandom;
 use std::collections::VecDeque;
 use tari_comms::peer_manager::NodeId;
 use tari_crypto::tari_utilities::{hex::Hex, Hashable};
+use crate::blocks::Block;
 
 const LOG_TARGET: &str = "c::bn::states::block_sync";
 
@@ -104,20 +105,28 @@ async fn synchronize_blocks<B: BlockchainBackend + 'static>(
         while local_metadata.accumulated_difficulty.unwrap_or_else(|| 0.into()) <
             network_metadata.accumulated_difficulty.unwrap_or_else(|| 0.into())
         {
-            // Check if sync hash is on local chain.
+            debug!(target: LOG_TARGET, "Trying to sync header '{}' with peer:{}", sync_block_hash.to_hex(), selected_sync_peer.as_ref().map(|p| p.to_string()).unwrap_or("None".to_string()));
+            debug!(target: LOG_TARGET, "Checking if we have '{}' in local best chain", sync_block_hash.to_hex());
             if async_db::fetch_header_with_block_hash(shared.db.clone(), sync_block_hash.clone())
                 .await
                 .is_ok()
             {
+                debug!(target: LOG_TARGET, "Block '{}' is in local best chain, proceed to download block", sync_block_hash.to_hex());
                 linked_to_chain = true;
+
                 break;
             }
-            // Check if blockchain db already has the sync hash block.
+
+
+            debug!(target:LOG_TARGET, "Not in DB, Checking if '{}' is in the orphan DB", sync_block_hash.to_hex());
             if let Ok(block) = async_db::fetch_orphan(shared.db.clone(), sync_block_hash.clone()).await {
+                debug!(target:LOG_TARGET, "'{}' is in the orphan DB, moving to check parent '{}", sync_block_hash.to_hex(),  block.header.prev_hash.to_hex());
+                block_hashes.push_front(sync_block_hash.clone());
                 sync_block_hash = block.header.prev_hash;
                 continue;
             }
-            // Add missing block to download queue.
+
+            debug!(target: LOG_TARGET, "Block '{}' is missing. Adding to download queue.", sync_block_hash.to_hex());
             block_hashes.push_front(sync_block_hash.clone());
             // Find the previous block hash by requesting the current header from the sync peer node.
             match shared
@@ -154,58 +163,76 @@ async fn synchronize_blocks<B: BlockchainBackend + 'static>(
             selected_sync_peer = select_sync_peer(sync_peers);
         }
 
-        // Sync missing blocks
+        debug!(target: LOG_TARGET, "Syncing missing blocks");
         if linked_to_chain {
             for sync_block_hash in block_hashes {
-                attempts = 0;
-                while attempts < shared.config.block_sync_config.max_block_request_retry_attempts {
-                    // Request the block from a random peer node and add to chain.
-                    match shared
-                        .comms
-                        .request_blocks_with_hashes_from_peer(vec![sync_block_hash.clone()], selected_sync_peer.clone())
-                        .await
-                    {
-                        Ok(blocks) => {
-                            debug!(target: LOG_TARGET, "Received {} blocks from peer", blocks.len());
-                            if let Some(hist_block) = blocks.first() {
-                                let block_hash = hist_block.block().hash();
-                                if block_hash == sync_block_hash {
-                                    match shared.db.add_block(hist_block.block().clone()) {
-                                        Ok(_) => {
-                                            break;
-                                        },
-                                        Err(ChainStorageError::InvalidBlock) => {
-                                            warn!(
-                                                target: LOG_TARGET,
-                                                "Invalid block {} received from peer. Retrying",
-                                                block_hash.to_hex(),
-                                            );
-                                        },
-                                        Err(ChainStorageError::ValidationError(_)) => {
-                                            warn!(
-                                                target: LOG_TARGET,
-                                                "Validation on block {} from peer failed. Retrying",
-                                                block_hash.to_hex(),
-                                            );
-                                        },
-                                        Err(e) => return Err(e.to_string()),
+                debug!(target: LOG_TARGET, "Requesting block '{}' from orphan pool", sync_block_hash.to_hex());
+                let mut block: Option<Block> = None;
+                if let Ok(b) = async_db::fetch_orphan(shared.db.clone(), sync_block_hash.clone()).await {
+                    block = Some(b);
+                } else {
+                    attempts = 0;
+                    while attempts < shared.config.block_sync_config.max_block_request_retry_attempts {
+                        debug!(target: LOG_TARGET, "Requesting block '{}' from sync node", sync_block_hash.to_hex());
+                        match shared
+                            .comms
+                            .request_blocks_with_hashes_from_peer(vec![sync_block_hash.clone()], selected_sync_peer.clone())
+                            .await
+                        {
+                            Ok(blocks) => {
+                                debug!(target: LOG_TARGET, "Received {} blocks from peer", blocks.len());
+                                if let Some(hist_block) = blocks.first() {
+                                    let block_hash = hist_block.block().hash();
+
+                                    if block_hash != sync_block_hash {
+                                        warn!(
+                                            target: LOG_TARGET,
+                                            "Invalid block {} received from peer. Retrying",
+                                            block_hash.to_hex(),
+                                        );
+                                    } else {
+                                        block = Some(hist_block.block().clone());
+                                        break;
                                     }
                                 }
                             }
-                        },
-                        Err(e) => {
-                            warn!(
-                                target: LOG_TARGET,
-                                "Failed to fetch blocks from peer:{:?}. Retrying.", e,
-                            );
-                        },
+                            Err(e) => {
+                                warn!(
+                                    target: LOG_TARGET,
+                                    "Failed to fetch blocks from peer:{:?}. Retrying.", e,
+                                );
+                            },
+                        }
+                        // Attempt again to retrieve the correct block with different sync peer
+                        attempts += 1;
+                        selected_sync_peer = select_sync_peer(sync_peers);
                     }
-                    // Attempt again to retrieve the correct block with different sync peer
-                    attempts += 1;
-                    selected_sync_peer = select_sync_peer(sync_peers);
+                    if attempts >= shared.config.block_sync_config.max_block_request_retry_attempts {
+                        return Ok(StateEvent::MaxRequestAttemptsReached);
+                    }
                 }
-                if attempts >= shared.config.block_sync_config.max_block_request_retry_attempts {
-                    return Ok(StateEvent::MaxRequestAttemptsReached);
+              // Should not ever have a None if we reach this point
+                let block = block.unwrap();
+                match shared.db.add_block(block) {
+                    Ok(result) => {
+                        info!(target: LOG_TARGET, "Added block {} to best chain:{}", sync_block_hash.to_hex(), result)
+                    },
+                    Err(ChainStorageError::InvalidBlock) => {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Invalid block {} received from peer. Retrying",
+                            sync_block_hash.to_hex(),
+                        );
+                    },
+                    Err(ChainStorageError::ValidationError(err)) => {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Validation on block {} from peer failed:{}. Retrying",
+                            sync_block_hash.to_hex(),
+                            err
+                        );
+                    },
+                    Err(e) => return Err(e.to_string()),
                 }
             }
         } else {

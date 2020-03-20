@@ -48,6 +48,7 @@ use tari_crypto::{
     tari_utilities::{hex::Hex, Hashable},
 };
 use tari_mmr::{Hash, MerkleCheckPoint, MerkleProof, MutableMmrLeafNodes};
+use std::fmt::{self, Display};
 
 const LOG_TARGET: &str = "c::cs::database";
 
@@ -56,7 +57,19 @@ pub enum BlockAddResult {
     Ok,
     BlockExists,
     OrphanBlock,
-    ChainReorg((Box<Vec<Block>>, Box<Vec<Block>>)), // Set of removed blocks and set of added blocks
+    ChainReorg((Vec<Block>, Vec<Block>)), // Set of removed blocks and set of added blocks
+}
+
+impl Display for BlockAddResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+       match self{
+           BlockAddResult::Ok =>  write!(f, "Block added to best chain"),
+           BlockAddResult::BlockExists => write!(f, "Block already exists in best chain"),
+           BlockAddResult::OrphanBlock => write!(f, "Block was added to orphan pool"),
+           BlockAddResult::ChainReorg((removed, added)) => write!(f, "Chain was reorg'ed. {} blocks added, {} blockes removed", added.len(), removed.len()),
+       }
+
+    }
 }
 
 /// MutableMmrState provides the total number of leaf nodes in the base MMR and the requested leaf nodes.
@@ -822,7 +835,8 @@ fn add_block<T: BlockchainBackend>(
 ) -> Result<BlockAddResult, ChainStorageError>
 {
     let block_hash = block.hash();
-    if db.contains(&DbKey::BlockHash(block_hash.clone()))? || db.contains(&DbKey::OrphanBlock(block_hash))? {
+    if db.contains(&DbKey::BlockHash(block_hash.clone()))?
+    {
         return Ok(BlockAddResult::BlockExists);
     }
 
@@ -838,7 +852,10 @@ fn validate_and_store_new_block<T: BlockchainBackend>(
 {
     block_validator
         .validate(&block, db, metadata)
-        .map_err(ChainStorageError::ValidationError)?;
+        .map_err(|err| {
+            warn!(target: LOG_TARGET, "Validation failed on block:{}", err);
+            ChainStorageError::ValidationError(err)
+        })?;
     store_new_block(db, block)
 }
 
@@ -1182,13 +1199,16 @@ fn handle_possible_reorg<T: BlockchainBackend>(
             );
             Err(e)
         })?;
-    insert_orphan(db, block.clone())?;
-    info!(
-        target: LOG_TARGET,
-        "Added new orphan block to the database. Current best height is {}. Orphan block height is {}",
-        db_height,
-        block.header.height
-    );
+    if !db.contains(&DbKey::OrphanBlock(block.hash()))? {
+        insert_orphan(db, block.clone())?;
+        info!(
+            target: LOG_TARGET,
+            "Added new orphan block to the database. Current best height is {}. Orphan block height is {}",
+            db_height,
+            block.header.height
+        );
+    }
+
     trace!(target: LOG_TARGET, "{}", block);
     // Trigger a reorg check for all blocks in the orphan block pool
     debug!(target: LOG_TARGET, "Checking for chain re-org.");
@@ -1264,8 +1284,8 @@ fn handle_reorg<T: BlockchainBackend>(
                 "Reorg from ({}) to ({})", tip_header, fork_tip_header
             );
             return Ok(BlockAddResult::ChainReorg((
-                Box::new(removed_blocks),
-                Box::new(added_blocks),
+                removed_blocks,
+                added_blocks,
             )));
         }
     }
