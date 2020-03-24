@@ -56,7 +56,7 @@
 //! Reject all new requests with a `Shutdown` message, complete current validations / tasks, flush all state if
 //! required, and then shutdown.
 
-mod block_sync;
+mod block_first_sync;
 mod error;
 mod events_and_states;
 mod helpers;
@@ -64,7 +64,7 @@ mod listening;
 mod shutdown_state;
 mod starting_state;
 
-pub use block_sync::{BlockSyncConfig, BlockSyncInfo};
+pub use block_first_sync::{BlockSyncConfig, BlockSyncInfo};
 pub use events_and_states::{BaseNodeState, StateEvent, SyncStatus};
 pub use listening::ListeningInfo;
 pub use shutdown_state::Shutdown;
