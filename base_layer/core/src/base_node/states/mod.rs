@@ -65,7 +65,7 @@ mod listening;
 mod shutdown_state;
 mod starting_state;
 
-pub use block_sync::{BlockSyncConfig, BlockSyncStrategy};
+pub use block_sync::{BestChainMetadataBlockSyncInfo, BlockSyncConfig, BlockSyncStrategy};
 pub use forward_block_sync::ForwardBlockSyncInfo;
 pub use events_and_states::{BaseNodeState, StateEvent, SyncStatus};
 pub use listening::ListeningInfo;

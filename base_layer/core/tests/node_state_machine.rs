@@ -47,7 +47,15 @@ use tari_core::{
     base_node::{
         chain_metadata_service::PeerChainMetadata,
         service::BaseNodeServiceConfig,
-        states::{BlockSyncConfig, BlockSyncInfo, ListeningInfo, StateEvent, SyncStatus, SyncStatus::Lagging},
+        states::{
+            BaseNodeState,
+            BestChainMetadataBlockSyncInfo,
+            BlockSyncConfig,
+            ListeningConfig,
+            ListeningInfo,
+            StateEvent,
+            SyncStatus::Lagging,
+        },
         BaseNodeStateMachine,
         BaseNodeStateMachineConfig,
     },
@@ -223,6 +231,7 @@ fn test_block_sync() {
             max_block_request_retry_attempts: 20,
             max_add_block_retry_attempts: 3,
             header_request_size: 5,
+            ..Default::default()
             block_request_size: 1,
         },
     };
@@ -254,7 +263,7 @@ fn test_block_sync() {
         // Sync Blocks from genesis block to tip
         let network_tip = bob_db.get_metadata().unwrap();
         let mut sync_peers = vec![bob_node.node_identity.node_id().clone()];
-        let state_event = BlockSyncInfo {}
+        let state_event = BestChainMetadataBlockSyncInfo {}
             .next_event(&mut alice_state_machine, &network_tip, &mut sync_peers)
             .await;
         assert_eq!(state_event, StateEvent::BlocksSynchronized);
@@ -301,6 +310,7 @@ fn test_lagging_block_sync() {
             max_add_block_retry_attempts: 3,
             header_request_size: 5,
             block_request_size: 1,
+            ..Default::default()
         },
     };
     let shutdown = Shutdown::new();
@@ -344,7 +354,7 @@ fn test_lagging_block_sync() {
         // Lagging state beyond horizon, sync remaining Blocks to tip
         let network_tip = bob_db.get_metadata().unwrap();
         let mut sync_peers = vec![bob_node.node_identity.node_id().clone()];
-        let state_event = BlockSyncInfo {}
+        let state_event = BestChainMetadataBlockSyncInfo {}
             .next_event(&mut alice_state_machine, &network_tip, &mut sync_peers)
             .await;
         assert_eq!(state_event, StateEvent::BlocksSynchronized);
@@ -395,6 +405,7 @@ fn test_block_sync_recovery() {
             max_add_block_retry_attempts: 3,
             header_request_size: 5,
             block_request_size: 1,
+            ..Default::default()
         },
     };
     let shutdown = Shutdown::new();
@@ -439,7 +450,7 @@ fn test_block_sync_recovery() {
         // have been reached.
         let network_tip = bob_db.get_metadata().unwrap();
         let mut sync_peers = vec![bob_node.node_identity.node_id().clone()];
-        let state_event = BlockSyncInfo
+        let state_event = BestChainMetadataBlockSyncInfo
             .next_event(&mut alice_state_machine, &network_tip, &mut sync_peers)
             .await;
         assert_eq!(state_event, StateEvent::BlocksSynchronized);
@@ -489,6 +500,7 @@ fn test_forked_block_sync() {
             max_add_block_retry_attempts: 3,
             header_request_size: 5,
             block_request_size: 1,
+            ..Default::default()
         },
     };
     let shutdown = Shutdown::new();
@@ -550,7 +562,7 @@ fn test_forked_block_sync() {
 
         let network_tip = bob_db.get_metadata().unwrap();
         let mut sync_peers = vec![bob_node.node_identity.node_id().clone()];
-        let state_event = BlockSyncInfo {}
+        let state_event = BestChainMetadataBlockSyncInfo {}
             .next_event(&mut alice_state_machine, &network_tip, &mut sync_peers)
             .await;
         assert_eq!(state_event, StateEvent::BlocksSynchronized);

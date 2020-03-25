@@ -25,7 +25,7 @@ use crate::{
         chain_metadata_service::ChainMetadataEvent,
         comms_interface::OutboundNodeCommsInterface,
         states,
-        states::{BaseNodeState, BlockSyncConfig, ListeningConfig, StateEvent, BlockSyncStrategy},
+        states::{BaseNodeState, BlockSyncConfig, BlockSyncStrategy, ListeningConfig, StateEvent},
         states::{BaseNodeState, BlockSyncConfig, StateEvent},
     },
     chain_storage::{BlockchainBackend, BlockchainDatabase},
@@ -106,9 +106,11 @@ impl<B: BlockchainBackend + 'static> BaseNodeStateMachine<B> {
             (Starting(s), Initialized) => Listening(s.into()),
             (BlockSync(s, _, _), BlocksSynchronized) => Listening(s.into()),
             (BlockSync(s, _, _), BlockSyncFailure) => Listening(s.into()),
-            (Listening(s), FallenBehind(Lagging(network_tip, sync_peers))) => {
-                BlockSync(self.config.block_sync_config.sync_strategy.clone(), network_tip, sync_peers)
-            },
+            (Listening(s), FallenBehind(Lagging(network_tip, sync_peers))) => BlockSync(
+                self.config.block_sync_config.sync_strategy.clone(),
+                network_tip,
+                sync_peers,
+            ),
             (_, FatalError(s)) => Shutdown(states::Shutdown::with_reason(s)),
             (_, UserQuit) => Shutdown(states::Shutdown::with_reason("Shutdown initiated by user".to_string())),
             (s, e) => {

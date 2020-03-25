@@ -36,9 +36,9 @@ use core::cmp::min;
 use derive_error::Error;
 use log::*;
 use rand::seq::SliceRandom;
+use std::{future::Future, str::FromStr};
 use tari_comms::peer_manager::NodeId;
 use tari_crypto::tari_utilities::{hex::Hex, Hashable};
-use std::future::Future;
 
 const LOG_TARGET: &str = "c::bn::states::block_sync";
 
@@ -87,18 +87,33 @@ pub enum BlockSyncStrategy {
     ForwardViaRandomPeer(ForwardBlockSyncInfo),
 }
 
+impl FromStr for BlockSyncStrategy {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ReverseViaBestChainMetadata" => Ok(Self::ReverseViaBestChainMetadata(BestChainMetadataBlockSyncInfo)),
+            "ForwardViaRandomPeer" => Ok(Self::ForwardViaRandomPeer(ForwardBlockSyncInfo)),
+            _ => Err("Unrecognized value for BlockSyncStrategy. Available values \
+                      are:ReverseViaBestChainMetadata,ForwardViaRandomPeer"
+                .to_string()),
+        }
+    }
+}
+
 impl BlockSyncStrategy {
     pub async fn next_event<B: BlockchainBackend + 'static>(
         &mut self,
         shared: &mut BaseNodeStateMachine<B>,
         network_tip: &ChainMetadata,
         sync_peers: &[NodeId],
-    ) -> StateEvent {
+    ) -> StateEvent
+    {
         match self {
-            BlockSyncStrategy::ReverseViaBestChainMetadata(sync) =>
-                sync.next_event(shared, network_tip, sync_peers).await,
-            BlockSyncStrategy::ForwardViaRandomPeer(sync) =>
-                sync.next_event(shared, sync_peers).await,
+            BlockSyncStrategy::ReverseViaBestChainMetadata(sync) => {
+                sync.next_event(shared, network_tip, sync_peers).await
+            },
+            BlockSyncStrategy::ForwardViaRandomPeer(sync) => sync.next_event(shared, sync_peers).await,
         }
     }
 }
@@ -124,7 +139,6 @@ impl PartialEq for BlockSyncStrategy {
         }
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum BlockSyncError {

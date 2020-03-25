@@ -30,11 +30,10 @@ use crate::{
     transactions::types::HashOutput,
 };
 use log::*;
+use rand::{rngs::OsRng, Rng};
 use std::{cmp, collections::VecDeque};
 use tari_comms::peer_manager::NodeId;
 use tari_crypto::tari_utilities::{hex::Hex, Hashable};
-use rand::rngs::OsRng;
-use rand::Rng;
 
 const LOG_TARGET: &str = "c::bn::states::block_sync";
 
@@ -190,7 +189,6 @@ async fn synchronize_blocks<B: BlockchainBackend + 'static>(
     }
     Ok(StateEvent::BlocksSynchronized)
 }
-
 
 fn next_sync_node(sync_nodes: &mut Vec<NodeId>) -> Option<NodeId> {
     if sync_nodes.is_empty() {

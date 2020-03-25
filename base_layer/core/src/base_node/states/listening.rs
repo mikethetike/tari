@@ -100,18 +100,12 @@ fn find_sync_peers(best_metadata: &ChainMetadata, peer_metadata_list: &Vec<PeerC
 
 // Finds the set of sync peers that have the best tip on their main chain.
 fn find_sync_peers(best_metadata: &ChainMetadata, metadata_rounds: &VecDeque<Vec<PeerChainMetadata>>) -> Vec<NodeId> {
-    let mut metadata_list = metadata_rounds
-        .iter()
-        .flatten()
-        .collect::<Vec<_>>();
-    metadata_list
-        .sort_by(|a, b| {
-            a.chain_metadata
-                .accumulated_difficulty
-                .cmp(&b.chain_metadata.accumulated_difficulty)
-        });
+    let mut metadata_list = metadata_rounds.iter().flatten().collect::<Vec<_>>();
+    metadata_list.sort_by(|a, b| {
+        a.chain_metadata
+            .accumulated_difficulty
+            .cmp(&b.chain_metadata.accumulated_difficulty)
+    });
 
-    metadata_list.into_iter().rev()
-        .map(|n| n.node_id.clone())
-        .collect()
+    metadata_list.into_iter().rev().map(|n| n.node_id.clone()).collect()
 }

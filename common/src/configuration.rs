@@ -261,6 +261,7 @@ pub struct GlobalConfig {
     pub public_address: Multiaddr,
     pub peer_seeds: Vec<String>,
     pub peer_db_path: PathBuf,
+    pub block_sync_strategy: String,
     pub enable_mining: bool,
     pub num_mining_threads: usize,
     pub tor_identity_file: PathBuf,
@@ -371,6 +372,11 @@ fn convert_node_config(network: Network, cfg: Config) -> Result<GlobalConfig, Co
     let peer_db_path = data_dir.join("peer_db");
     let wallet_peer_db_path = data_dir.join("wallet_peer_db");
 
+    let key = config_string(&net_str, "block_sync_strategy");
+    let block_sync_strategy = cfg
+        .get_str(&key)
+        .map_err(|e| ConfigurationError::new(&key, &e.to_string()))?;
+
     // set base node mining
     let key = config_string(&net_str, "enable_mining");
     let enable_mining = cfg
@@ -400,6 +406,7 @@ fn convert_node_config(network: Network, cfg: Config) -> Result<GlobalConfig, Co
         public_address,
         peer_seeds,
         peer_db_path,
+        block_sync_strategy,
         enable_mining,
         num_mining_threads,
         tor_identity_file,
@@ -543,6 +550,8 @@ pub fn default_config(bootstrap: &ConfigBootstrap) -> Config {
     cfg.set_default("base_node.mainnet.db_type", "lmdb").unwrap();
     cfg.set_default("base_node.mainnet.peer_seeds", Vec::<String>::new())
         .unwrap();
+    cfg.set_default("base_node.mainnet.block_sync_strategy", "ReverseViaBestChainMetadata")
+        .unwrap();
     cfg.set_default("base_node.mainnet.blocking_threads", 4).unwrap();
     cfg.set_default("base_node.mainnet.core_threads", 6).unwrap();
     cfg.set_default(
@@ -554,7 +563,7 @@ pub fn default_config(bootstrap: &ConfigBootstrap) -> Config {
         "base_node.mainnet.identity_file",
         default_subdir("mainnet/node_id.json", Some(&bootstrap.base_path)),
     )
-    .unwrap();
+        .unwrap();
     cfg.set_default(
         "base_node.mainnet.tor_identity_file",
         default_subdir("mainnet/tor.json", Some(&bootstrap.base_path)),
@@ -586,6 +595,8 @@ pub fn default_config(bootstrap: &ConfigBootstrap) -> Config {
     cfg.set_default("base_node.rincewind.db_type", "lmdb").unwrap();
     cfg.set_default("base_node.rincewind.peer_seeds", Vec::<String>::new())
         .unwrap();
+    cfg.set_default("base_node.rincewind.block_sync_strategy", "ReverseViaBestChainMetadata")
+        .unwrap();
     cfg.set_default("base_node.rincewind.blocking_threads", 4).unwrap();
     cfg.set_default("base_node.rincewind.core_threads", 4).unwrap();
     cfg.set_default(
@@ -597,7 +608,7 @@ pub fn default_config(bootstrap: &ConfigBootstrap) -> Config {
         "base_node.rincewind.tor_identity_file",
         default_subdir("rincewind/tor.json", Some(&bootstrap.base_path)),
     )
-    .unwrap();
+        .unwrap();
     cfg.set_default(
         "base_node.rincewind.wallet_identity_file",
         default_subdir("rincewind/wallet-identity.json", Some(&bootstrap.base_path)),
