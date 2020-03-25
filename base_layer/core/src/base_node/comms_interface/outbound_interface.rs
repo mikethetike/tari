@@ -170,17 +170,14 @@ impl OutboundNodeCommsInterface {
         &mut self,
         from_hash: Vec<HashOutput>,
         to_hash: Option<HashOutput>,
+        node_id: Option<NodeId>,
     ) -> Result<Vec<BlockHeader>, CommsInterfaceError>
     {
         let to_hash = to_hash.unwrap_or(HashOutput::new());
-        if let Some(NodeCommsResponse::FetchHeadersAfterResponse(headers)) = self
+        if let NodeCommsResponse::FetchHeadersAfterResponse(headers) = self
             .request_sender
-            .call((
-                NodeCommsRequest::FetchHeadersAfter(from_hash, to_hash),
-                NodeCommsRequestType::Single,
-            ))
+            .call((NodeCommsRequest::FetchHeadersAfter(from_hash, to_hash), node_id))
             .await??
-            .first()
         {
             Ok(headers.clone())
         } else {

@@ -134,6 +134,7 @@ where T: BlockchainBackend + 'static
                         async_db::fetch_header_with_block_hash(self.blockchain_db.clone(), header_hash.clone()).await
                     {
                         starting_block = from_block;
+                        break;
                     }
                 }
                 let mut headers = vec![];
