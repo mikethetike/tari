@@ -44,6 +44,7 @@ use tari_comms::{
 use tari_comms_dht::{Dht, DhtBuilder, DhtConfig};
 use tari_storage::{lmdb_store::LMDBBuilder, LMDBWrapper};
 use tower::ServiceBuilder;
+use tokio::time::delay_for;
 
 const LOG_TARGET: &str = "b::p2p::initialization";
 
@@ -209,11 +210,13 @@ where
                 "Created hidden service {}",
                 hidden_service.get_onion_address()
             );
+            delay_for(Duration::from_secs(5)).await;
             let comms = builder.configure_from_hidden_service(hidden_service);
             debug!(target: LOG_TARGET, "Comms stack configured");
-
+            delay_for(Duration::from_secs(5)).await;
             let (comms, dht) = configure_comms_and_dht(comms, config, connector).await?;
             debug!(target: LOG_TARGET, "DHT configured");
+
             // Set the public address to the onion address that comms is using
             comms
                 .node_identity()
@@ -289,6 +292,7 @@ where
     // Create outbound channel
     let (outbound_tx, outbound_rx) = mpsc::channel(config.outbound_buffer_size);
 
+    trace!(target: LOG_TARGET, "Building DHT");
     let dht = DhtBuilder::new(
         comms.node_identity(),
         comms.peer_manager(),
@@ -299,8 +303,10 @@ where
     .with_config(config.dht)
     .finish();
 
+    trace!(target: LOG_TARGET, "Creating outbound middleware layer");
     let dht_outbound_layer = dht.outbound_middleware_layer();
 
+    trace!(target: LOG_TARGET, "Starting comms pipeline");
     let comms = comms
         .with_messaging_pipeline(
             pipeline::Builder::new()
@@ -308,9 +314,10 @@ where
                 .with_outbound_pipeline(outbound_rx, |sink| {
                     ServiceBuilder::new().layer(dht_outbound_layer).service(sink)
                 })
-                .max_concurrent_inbound_tasks(config.max_concurrent_inbound_tasks)
+                // .max_concurrent_inbound_tasks(config.max_concurrent_inbound_tasks)
                 .with_inbound_pipeline(
                     ServiceBuilder::new()
+                        .concurrency_limit(config.max_concurrent_inbound_tasks)
                         .layer(dht.inbound_middleware_layer())
                         .service(SinkService::new(connector)),
                 )

@@ -119,16 +119,19 @@ fn main_inner() -> Result<(), ExitCodes> {
 
     // Initialise the logger
     if !tari_common::initialize_logging(&arguments.bootstrap.log_config) {
+        println!("Could not initialize logging");
         return Err(ExitCodes::ConfigError);
     }
 
     // Load and apply configuration file
+    trace!(target: LOG_TARGET, "Loading configuration");
     let cfg = load_configuration(&arguments.bootstrap).map_err(|err| {
         error!(target: LOG_TARGET, "{}", err);
         ExitCodes::ConfigError
     })?;
 
     // Populate the configuration struct
+    trace!(target: LOG_TARGET, "Initializing node configuration");
     let node_config = GlobalConfig::convert_from(cfg).map_err(|err| {
         error!(target: LOG_TARGET, "The configuration file has an error. {}", err);
         ExitCodes::ConfigError
@@ -143,6 +146,7 @@ fn main_inner() -> Result<(), ExitCodes> {
     })?;
 
     // Load or create the Node identity
+    trace!(target: LOG_TARGET, "Setting up wallet identity");
     let wallet_identity = setup_node_identity(
         &node_config.wallet_identity_file,
         &node_config.public_address,
@@ -151,6 +155,7 @@ fn main_inner() -> Result<(), ExitCodes> {
             node_config.identity_file.exists(),
         PeerFeatures::COMMUNICATION_CLIENT,
     )?;
+    trace!(target: LOG_TARGET, "Setting up node identity");
     let node_identity = setup_node_identity(
         &node_config.identity_file,
         &node_config.public_address,
@@ -160,6 +165,7 @@ fn main_inner() -> Result<(), ExitCodes> {
 
     // Build, node, build!
     let shutdown = Shutdown::new();
+    trace!(target: LOG_TARGET, "Configuring and initializing node");
     let ctx = rt
         .block_on(builder::configure_and_initialize_node(
             &node_config,
@@ -189,6 +195,7 @@ fn main_inner() -> Result<(), ExitCodes> {
 
     // Run, node, run!
     let parser = Parser::new(rt.handle().clone(), &ctx);
+    trace!(target: LOG_TARGET, "Starting node");
     let base_node_handle = rt.spawn(ctx.run(rt.handle().clone()));
 
     info!(
@@ -228,8 +235,8 @@ fn setup_runtime(config: &GlobalConfig) -> Result<Runtime, String> {
     tokio::runtime::Builder::new()
         .threaded_scheduler()
         .enable_all()
-        .max_threads(num_core_threads + num_blocking_threads + num_mining_threads)
-        .core_threads(num_core_threads)
+        // .max_threads(num_core_threads + num_blocking_threads + num_mining_threads)
+        // .core_threads(num_core_threads)
         .build()
         .map_err(|e| format!("There was an error while building the node runtime. {}", e.to_string()))
 }

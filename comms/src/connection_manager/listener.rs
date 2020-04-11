@@ -118,6 +118,7 @@ where
                 self.send_event(ConnectionManagerEvent::Listening(address)).await;
 
                 loop {
+                    trace!(target: LOG_TARGET, "Waiting for inbound event");
                     futures::select! {
                         inbound_result = inbound.select_next_some() => {
                             if let Some((inbound_future, peer_addr)) = log_if_error!(target: LOG_TARGET, inbound_result, "Inbound connection failed because '{error}'",) {

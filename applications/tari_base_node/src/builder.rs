@@ -413,7 +413,9 @@ pub async fn configure_and_initialize_node(
             NodeContainer::Memory(ctx)
         },
         DatabaseType::LMDB(p) => {
+            trace!(target: LOG_TARGET, "Creating LMDB database");
             let backend = create_lmdb_database(&p, MmrCacheConfig::default()).map_err(|e| e.to_string())?;
+            trace!(target: LOG_TARGET, "Building node context");
             let ctx = build_node_context(
                 backend,
                 network,
@@ -476,6 +478,7 @@ where
     let (base_node_comms, base_node_dht) = setup_base_node_comms(base_node_identity, config, publisher).await?;
 
     debug!(target: LOG_TARGET, "Registering base node services");
+    delay_for(Duration::from_secs(5)).await;
     let base_node_handles = register_base_node_services(
         &base_node_comms,
         &base_node_dht,
@@ -946,8 +949,8 @@ async fn setup_base_node_comms(
         transport_type: setup_transport_type(&config),
         datastore_path: config.peer_db_path.clone(),
         peer_database_name: "peers".to_string(),
-        max_concurrent_inbound_tasks: 100,
-        outbound_buffer_size: 100,
+        max_concurrent_inbound_tasks: 1,
+        outbound_buffer_size: 1,
         // TODO - make this configurable
         dht: DhtConfig {
             database_url: DbConnectionUrl::File(config.data_dir.join("dht.db")),
@@ -958,10 +961,12 @@ async fn setup_base_node_comms(
         listener_liveness_whitelist_cidrs: config.listener_liveness_whitelist_cidrs.clone(),
         listener_liveness_max_sessions: config.listnener_liveness_max_sessions,
     };
+    trace!(target: LOG_TARGET, "Initializing comms");
     let (comms, dht) = initialize_comms(comms_config, publisher)
         .await
         .map_err(|e| format!("Could not create comms layer: {:?}", e))?;
 
+    trace!(target: LOG_TARGET, "Saving node identity");
     // Save final node identity after comms has initialized. This is required because the public_address can be changed
     // by comms during initialization when using tor.
     save_as_json(&config.identity_file, &*comms.node_identity())

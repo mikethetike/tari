@@ -25,6 +25,9 @@ use futures::{stream::FusedStream, Stream, StreamExt};
 use log::*;
 use std::fmt::Debug;
 use tower::{Service, ServiceExt};
+use std::time::Duration;
+use tokio::time::delay_for;
+use crate::runtime;
 
 const LOG_TARGET: &str = "comms::pipeline::inbound";
 
@@ -33,7 +36,7 @@ const LOG_TARGET: &str = "comms::pipeline::inbound";
 /// that ServicePipeline doesn't keep the result of the service
 /// call and that it spawns a task for each incoming item.
 pub struct Inbound<TSvc, TStream> {
-    executor: BoundedExecutor,
+    // executor: ,
     service: TSvc,
     stream: TStream,
 }
@@ -46,19 +49,22 @@ where
     TSvc::Error: Debug + Send,
     TSvc::Future: Send,
 {
-    pub fn new(executor: BoundedExecutor, stream: TStream, service: TSvc) -> Self {
+    pub fn new( stream: TStream, service: TSvc) -> Self {
         Self {
-            executor,
+            // executor,
             stream,
             service,
         }
     }
 
     pub async fn run(mut self) {
+        trace!(target: LOG_TARGET, "Inbound pipeline starting");
+
         while let Some(item) = self.stream.next().await {
+            trace!(target: LOG_TARGET, "Received item from stream");
             let service = self.service.clone();
             // Call the service in it's own spawned task
-            self.executor
+            runtime::current_executor()
                 .spawn(async move {
                     if let Err(err) = service.oneshot(item).await {
                         error!(target: LOG_TARGET, "Inbound pipeline returned an error: '{:?}'", err);

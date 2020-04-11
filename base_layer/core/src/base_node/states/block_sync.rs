@@ -56,9 +56,9 @@ const MAX_BLOCK_REQUEST_RETRY_ATTEMPTS: usize = 5;
 // to the chain.
 const MAX_ADD_BLOCK_RETRY_ATTEMPTS: usize = 3;
 // The number of headers that can be requested in a single query.
-const HEADER_REQUEST_SIZE: usize = 100;
+const HEADER_REQUEST_SIZE: usize = 1300;
 // The number of blocks that can be requested in a single query.
-const BLOCK_REQUEST_SIZE: usize = 5;
+const BLOCK_REQUEST_SIZE: usize = 500;
 
 /// Configuration for the Block Synchronization.
 #[derive(Clone, Copy)]

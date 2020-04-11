@@ -29,45 +29,46 @@ use tari_mmr::{error::MerkleMountainRangeError, MerkleProofError};
 
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum ChainStorageError {
-    // Access to the underlying storage mechanism failed
+    /// Access to the underlying storage mechanism failed
     #[error(non_std, no_from)]
     AccessError(String),
-    // The database may be corrupted or otherwise be in an inconsistent state. Please check logs to try and identify
-    // the issue
+    /// The database may be corrupted or otherwise be in an inconsistent state. Please check logs to try and identify
+    /// the issue
     #[error(non_std, no_from)]
     CorruptedDatabase(String),
-    // A given input could not be spent because it was not in the UTXO set
+    /// A given input could not be spent because it was not in the UTXO set
     UnspendableInput,
-    // A problem occurred trying to move a STXO back into the UTXO pool during a re-org.
+    /// A problem occurred trying to move a STXO back into the UTXO pool during a re-org.
     UnspendError,
-    // An unexpected result type was received for the given database request. This suggests that there is an internal
-    // error or bug of sorts.
+    /// An unexpected result type was received for the given database request. This suggests that there is an internal
+    /// error or bug of sorts.
     #[error(msg_embedded, non_std, no_from)]
     UnexpectedResult(String),
-    // You tried to execute an invalid Database operation
+    /// You tried to execute an invalid Database operation
     #[error(msg_embedded, non_std, no_from)]
     InvalidOperation(String),
-    // There appears to be a critical error on the back end. The database might be in an inconsistent state. Check
-    // the logs for more information.
-    CriticalError,
-    // Cannot return data for requests older than the current pruning horizon
+    /// There appears to be a critical error on the back end. The database might be in an inconsistent state. Check
+    /// the logs for more information.
+    #[error(msg_embedded, non_std, no_from)]
+    CriticalError(String),
+    /// Cannot return data for requests older than the current pruning horizon
     BeyondPruningHorizon,
-    // A parameter to the request was invalid
+    /// A parameter to the request was invalid
     #[error(msg_embedded, non_std, no_from)]
     InvalidQuery(String),
-    // The requested value was not found in the database
+    /// The requested value was not found in the database
     #[error(non_std, no_from)]
     ValueNotFound(DbKey),
     MerkleMountainRangeError(MerkleMountainRangeError),
     MerkleProofError(MerkleProofError),
     ValidationError(ValidationError),
-    // An MMR root in the provided block header did not match the MMR root in the database
+    /// An MMR root in the provided block header did not match the MMR root in the database
     #[error(non_std, no_from)]
     MismatchedMmrRoot(MmrTree),
-    // An invalid block was submitted to the database
+    /// An invalid block was submitted to the database
     InvalidBlock,
     #[error(msg_embedded, non_std, no_from)]
     BlockingTaskSpawnError(String),
-    // A request was out of range
+    /// A request was out of range
     OutOfRange,
 }

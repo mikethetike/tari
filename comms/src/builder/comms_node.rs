@@ -40,6 +40,10 @@ use std::{fmt, sync::Arc, time::Duration};
 use tari_shutdown::{Shutdown, ShutdownSignal};
 use tokio::{sync::broadcast, time};
 use tower::Service;
+use tokio::time::delay_for;
+use futures::{stream::FusedStream, Stream};
+use crate::pipeline::Inbound;
+use std::fmt::Debug;
 
 const LOG_TARGET: &str = "comms::node";
 
@@ -163,16 +167,20 @@ where
 
         let executor = runtime::current_executor();
         executor.spawn(connection_manager.run());
+        delay_for(Duration::from_secs(1)).await;
 
         // Spawn messaging protocol
-        let messaging_signal = messaging.complete_signal();
-        executor.spawn(messaging.run());
+         let messaging_signal = messaging.complete_signal();
+         executor.spawn(messaging.run());
 
+
+        trace!(target: LOG_TARGET, "Building inbound pipeline");
         // Spawn inbound pipeline
-        let bounded_executor = BoundedExecutor::new(executor.clone(), messaging_pipeline.max_concurrent_inbound_tasks);
-        let inbound = pipeline::Inbound::new(bounded_executor, inbound_message_rx, messaging_pipeline.inbound);
-        executor.spawn(inbound.run());
+        // let bounded_executor = BoundedExecutor::new(executor.clone(), messaging_pipeline.max_concurrent_inbound_tasks);
+        let inbound = pipeline::Inbound::new( inbound_message_rx, messaging_pipeline.inbound);
+         executor.spawn(inbound.run());
 
+        trace!(target: LOG_TARGET, "Building outbound pipeline");
         // Spawn outbound pipeline
         let outbound = pipeline::Outbound::new(executor.clone(), messaging_pipeline.outbound, messaging_request_tx);
         executor.spawn(outbound.run());

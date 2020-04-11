@@ -131,6 +131,7 @@ where
             .expect("Establisher initialized without a shutdown");
         debug!(target: LOG_TARGET, "Connection dialer started");
         loop {
+            trace!(target: LOG_TARGET, "Waiting for request or pending dial");
             futures::select! {
                 request = self.request_rx.select_next_some() => self.handle_request(&mut pending_dials, request),
                 (dial_state, dial_result) = pending_dials.select_next_some() => {

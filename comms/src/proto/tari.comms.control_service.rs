@@ -15,6 +15,10 @@ pub enum MessageType {
     ConnectRequestOutcome = 6,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PingMessage {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PongMessage {}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RequestConnectionMessage {
     #[prost(string, tag = "1")]
     pub control_service_address: std::string::String,
@@ -55,7 +59,3 @@ pub enum RejectReason {
     /// A connection collision has been detected, foreign node should abandon the connection attempt
     CollisionDetected = 2,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PingMessage {}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PongMessage {}

@@ -248,6 +248,7 @@ where
 
         debug!(target: LOG_TARGET, "Connection manager started");
         loop {
+            trace!(target: LOG_TARGET, "Waiting for an event or request");
             futures::select! {
                 event = self.internal_event_rx.select_next_some() => {
                     self.handle_event(event).await;

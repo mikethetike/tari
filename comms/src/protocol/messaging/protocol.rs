@@ -160,6 +160,7 @@ impl MessagingProtocol {
     }
 
     pub async fn run(mut self) {
+        trace!(target: LOG_TARGET, "Starting messaging");
         let mut shutdown_signal = self
             .shutdown_signal
             .take()
@@ -168,6 +169,7 @@ impl MessagingProtocol {
         let mut conn_man_events = self.connection_manager_requester.get_event_subscription().fuse();
 
         loop {
+            trace!(target: LOG_TARGET, "Waiting for messaging event");
             futures::select! {
                 event = conn_man_events.select_next_some() => {
                     if let Some(event) = log_if_error!(target: LOG_TARGET, event, "Event error: '{error}'",) {

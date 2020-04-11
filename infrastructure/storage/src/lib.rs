@@ -1,3 +1,6 @@
+#[macro_use] extern crate quick_error;
+
+
 mod key_val_store;
 pub mod lmdb_store;
 

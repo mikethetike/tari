@@ -20,35 +20,29 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use derive_error::Error;
+use quick_error;
 
-#[derive(Debug, Error)]
-pub enum LMDBError {
-    /// Cannot create LMDB. The path does not exist
-    InvalidPath,
-    /// An error occurred with the underlying data store implementation
-    #[error(embedded_msg, no_from, non_std)]
-    InternalError(String),
-    /// An error occurred during serialization
-    #[error(no_from, non_std)]
-    SerializationErr(String),
-    /// An error occurred during deserialization
-    #[error(no_from, non_std)]
-    DeserializationErr(String),
-    /// Occurs when trying to perform an action that requires us to be in a live transaction
-    TransactionNotLiveError,
-    /// A transaction or query was attempted while no database was open.
-    DatabaseNotOpen,
-    /// A database with the requested name does not exist
-    UnknownDatabase,
-    /// An error occurred during a put query
-    #[error(embedded_msg, no_from, non_std)]
-    PutError(String),
-    /// An error occurred during a get query
-    #[error(embedded_msg, no_from, non_std)]
-    GetError(String),
-    #[error(embedded_msg, no_from, non_std)]
-    CommitError(String),
-    /// An LMDB error occurred
-    DatabaseError(lmdb_zero::error::Error),
+quick_error! {
+    #[derive(Debug)]
+    pub enum LMDBError {
+        /// Cannot create LMDB. The path does not exist
+        InvalidPath {
+            description("Cannot create LMDB. The path does not exist")
+        }
+         /// An error occurred during serialization
+        SerializationErr(reason: String ){
+            display("An error occurred during serialization:{}", reason)
+        }
+        GetError(reason: String) {
+            display("An error occurred during a get query:{}", reason)
+        }
+        CommitError(reason: String){
+            display("An error occurred during commit:{}", reason)
+        }
+        /// An LMDB error occurred
+        DatabaseError(err: lmdb_zero::error::Error){
+            from()
+            display("An LMDB error occurred:{}", err)
+        }
+    }
 }
