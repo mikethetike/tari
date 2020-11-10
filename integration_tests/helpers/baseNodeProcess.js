@@ -54,6 +54,7 @@ class BaseNodeProcess {
             TARI_BASE_NODE__LOCALNET__IDENTITY_FILE: this.nodeFile,
             TARI_BASE_NODE__LOCALNET__TOR_IDENTITY_FILE: "node_tor_id.json",
             TARI_BASE_NODE__LOCALNET__WALLET_IDENTITY_FILE: "walletid.json",
+            TARI_BASE_NODE__LOCALNET__ENABLE_WALLET: true,
             TARI_BASE_NODE__LOCALNET__WALLET_TOR_IDENTITY_FILE: "wallet_tor_id.json",
             TARI_BASE_NODE__LOCALNET__TRANSPORT: "tcp",
             TARI_BASE_NODE__LOCALNET__TCP_LISTENER_ADDRESS: "/ip4/0.0.0.0/tcp/" + this.port,
@@ -94,6 +95,7 @@ class BaseNodeProcess {
 
         expect(ps.error).to.be.an('undefined');
 
+        this.ps = ps;
         return ps;
 
     }
@@ -121,6 +123,7 @@ class BaseNodeProcess {
         });
 
         expect(ps.error).to.be.an('undefined');
+        this.ps = ps;
         return ps;
 
     }
@@ -136,9 +139,13 @@ class BaseNodeProcess {
     }
 
     async start() {
-        var ps = this.run("cargo", ["run", "--release", "--bin tari_base_node", "--", "--base-path", "."]);
+        var ps = this.run("cargo", ["run","--release", "--bin tari_base_node", "--", "--base-path", "."]);
         await sleep(6000);
         return ps;
+    }
+
+    stop() {
+        this.ps.kill("SIGINT");
     }
 
     createGrpcClient() {
