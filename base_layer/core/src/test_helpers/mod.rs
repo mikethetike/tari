@@ -71,3 +71,4 @@ pub fn create_peer_manager<P: AsRef<Path>>(data_path: P) -> Arc<PeerManager> {
     let peer_database = datastore.get_handle(&peer_database_name).unwrap();
     Arc::new(PeerManager::new(LMDBWrapper::new(Arc::new(peer_database)), None).unwrap())
 }
+

@@ -124,8 +124,10 @@ fn headers_validation() {
 
 #[test]
 fn chain_balance_validation() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     let factories = CryptoFactories::default();
-    let consensus_manager = ConsensusManagerBuilder::new(Network::Ridcully).build();
+    let consensus_manager = ConsensusManagerBuilder::new(Network::LocalNet).build();
     let mut genesis = consensus_manager.get_genesis_block();
     let faucet_value = 5000 * uT;
     let (faucet_utxo, faucet_key) = create_utxo(faucet_value, &factories, None);

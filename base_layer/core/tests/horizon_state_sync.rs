@@ -134,8 +134,7 @@ fn test_pruned_mode_sync_with_future_horizon_sync_height() {
         for _ in 0..NUM_BLOCKS {
             // Need coinbases for kernels and utxos
             let (block, _) =
-                append_block_with_coinbase(&factories, bob_db, &prev_block, vec![], &consensus_manager, 1.into())
-                    .unwrap();
+                append_block_with_coinbase(bob_db, &prev_block, vec![], &consensus_manager, 1.into()).unwrap();
             prev_block = block;
         }
 
@@ -259,7 +258,6 @@ fn test_pruned_mode_sync_with_spent_utxos() {
         for _ in 0..4 {
             // Need coinbases for kernels and utxos
             let (block, coinbase) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![],
@@ -279,7 +277,6 @@ fn test_pruned_mode_sync_with_spent_utxos() {
             let (tx, _, _) = spend_utxos(schema);
 
             let (block, _) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![tx],
@@ -294,7 +291,6 @@ fn test_pruned_mode_sync_with_spent_utxos() {
         for _ in 0..6 {
             // Need coinbases for kernels and utxos
             let (block, coinbase) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![],
@@ -314,7 +310,6 @@ fn test_pruned_mode_sync_with_spent_utxos() {
             let (tx, _, _) = spend_utxos(schema);
 
             let (_, _) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![tx],
@@ -423,7 +418,6 @@ fn test_pruned_mode_sync_with_spent_faucet_utxo_before_horizon() {
         for _ in 0..4 {
             // Need coinbases for kernels and utxos
             let (block, _) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![],
@@ -444,7 +438,6 @@ fn test_pruned_mode_sync_with_spent_faucet_utxo_before_horizon() {
 
             // Need coinbases for kernels and utxos
             let (block, _) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![tx],
@@ -458,7 +451,6 @@ fn test_pruned_mode_sync_with_spent_faucet_utxo_before_horizon() {
         for _ in 0..6 {
             // Need coinbases for kernels and utxos
             let (block, _) = append_block_with_coinbase(
-                &factories,
                 &bob_node.blockchain_db,
                 &prev_block,
                 vec![],
@@ -658,8 +650,7 @@ fn test_pruned_mode_sync_fail_final_validation() {
         for _ in 0..NUM_BLOCKS {
             // Need coinbases for kernels and utxos
             let (block, _) =
-                append_block_with_coinbase(&factories, bob_db, &prev_block, vec![], &consensus_manager, 1.into())
-                    .unwrap();
+                append_block_with_coinbase(bob_db, &prev_block, vec![], &consensus_manager, 1.into()).unwrap();
             prev_block = block;
         }
 

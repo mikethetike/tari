@@ -272,9 +272,7 @@ mod test {
 
         let mut peer_metadata_list = Vec::<PeerChainMetadata>::new();
         let best_network_metadata = best_metadata(peer_metadata_list.as_slice());
-        assert_eq!(best_network_metadata.clone().unwrap(), ChainMetadata::genesis());
-        let sync_peers = select_sync_peers(local_tip_height, &best_network_metadata.unwrap(), &peer_metadata_list);
-        assert_eq!(sync_peers.len(), 0);
+        assert_eq!(best_network_metadata, None);
 
         let node_id1 = random_node_id();
         let node_id2 = random_node_id();

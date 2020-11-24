@@ -72,7 +72,7 @@ impl ConsensusManager {
             Network::MainNet => get_mainnet_genesis_block(),
             Network::Rincewind => get_rincewind_genesis_block(),
             Network::Ridcully => get_ridcully_genesis_block(),
-            Network::LocalNet => get_ridcully_genesis_block(),
+            Network::LocalNet => self.inner.gen_block.clone().unwrap_or_else(get_ridcully_genesis_block),
         }
     }
 

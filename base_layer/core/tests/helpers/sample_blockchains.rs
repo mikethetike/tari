@@ -27,7 +27,7 @@ use tari_core::{
     blocks::Block,
     chain_storage::{create_lmdb_database, BlockchainDatabase, BlockchainDatabaseConfig, LMDBDatabase, Validators},
     consensus::{ConsensusConstantsBuilder, ConsensusManager, ConsensusManagerBuilder, Network},
-    test_helpers::blockchain::{create_store_with_consensus, TempDatabase},
+    test_helpers::blockchain::{create_store_with_consensus, create_test_db, TempDatabase},
     transactions::{
         tari_amount::{uT, T},
         transaction::UnblindedOutput,
@@ -150,13 +150,12 @@ pub fn create_new_blockchain(
 }
 
 /// Create a new blockchain database containing only the Genesis block
-pub fn create_new_blockchain_lmdb<P: AsRef<std::path::Path>>(
+pub fn create_new_blockchain_lmdb(
     network: Network,
-    path: P,
-    validators: Validators<LMDBDatabase>,
+    validators: Validators<TempDatabase>,
     config: BlockchainDatabaseConfig,
 ) -> (
-    BlockchainDatabase<LMDBDatabase>,
+    BlockchainDatabase<TempDatabase>,
     Vec<Block>,
     Vec<Vec<UnblindedOutput>>,
     ConsensusManager,
@@ -171,7 +170,7 @@ pub fn create_new_blockchain_lmdb<P: AsRef<std::path::Path>>(
         .with_consensus_constants(consensus_constants)
         .with_block(block0.clone())
         .build();
-    let db = create_lmdb_database(path, LMDBConfig::default()).unwrap();
+    let db = create_test_db();
     let db = BlockchainDatabase::new(db, &consensus_manager, validators, config, false).unwrap();
     (db, vec![block0], vec![vec![output]], consensus_manager)
 }

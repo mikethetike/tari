@@ -695,7 +695,7 @@ fn lmdb_backend_restore() {
 }
 
 fn duplicate_utxo<T: BlockchainBackend>(mut db: T) {
-    unimplemented!()
+    // let block =
     // let factories = CryptoFactories::default();
     // let (utxo1, _) = create_utxo(MicroTari(10_000), &factories, None);
     // let (utxo2, _) = create_utxo(MicroTari(15_000), &factories, None);

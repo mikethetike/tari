@@ -100,7 +100,7 @@ pub fn create_store_with_consensus(rules: &ConsensusManager) -> BlockchainDataba
     create_store_with_consensus_and_validators(rules, validators)
 }
 pub fn create_store() -> BlockchainDatabase<TempDatabase> {
-    let network = Network::Ridcully;
+    let network = Network::LocalNet;
     let rules = ConsensusManagerBuilder::new(network).build();
     create_store_with_consensus(&rules)
 }

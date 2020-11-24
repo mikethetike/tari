@@ -1199,27 +1199,6 @@ fn store_new_block<T: BlockchainBackend>(
     }
     output_mmr.compress();
 
-    // Check that MMR roots match
-    // TODO: To remove later. This is just a sanity check
-    let kernel_root = include_legacy_deleted_hash(kernel_mmr.get_merkle_root()?);
-    let output_root = output_mmr.get_merkle_root()?;
-    let range_proof_root = include_legacy_deleted_hash(proof_mmr.get_merkle_root()?);
-    if output_root != header.output_mr {
-        return Err(ChainStorageError::InvalidOperation(
-            "Calculated output MMR root did not match header mmr".to_string(),
-        ));
-    }
-    if kernel_root != header.kernel_mr {
-        return Err(ChainStorageError::InvalidOperation(
-            "Calculated Kernel MMR root did not match header mmr".to_string(),
-        ));
-    }
-    if range_proof_root != header.range_proof_mr {
-        return Err(ChainStorageError::InvalidOperation(
-            "Calculated range proof MMR root did not match header mmr".to_string(),
-        ));
-    }
-
     txn.set_block_accumulated_data(
         header_hash,
         BlockAccumulatedData::new(

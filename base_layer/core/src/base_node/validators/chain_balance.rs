@@ -31,7 +31,10 @@ use crate::{
     validation::{Validation, ValidationError},
 };
 use log::*;
-use tari_crypto::{commitment::HomomorphicCommitmentFactory, tari_utilities::hash::Hashable};
+use tari_crypto::{
+    commitment::HomomorphicCommitmentFactory,
+    tari_utilities::{hash::Hashable, hex::Hex},
+};
 
 const LOG_TARGET: &str = "c::bn::states::horizon_state_sync::chain_balance";
 
@@ -51,13 +54,18 @@ impl<B: BlockchainBackend> ChainBalanceValidator<B> {
 impl<B: BlockchainBackend> Validation<BlockHeader> for ChainBalanceValidator<B> {
     fn validate(&self, horizon_header: &BlockHeader) -> Result<(), ValidationError> {
         let hash = horizon_header.hash();
+        debug!(target: LOG_TARGET, "Validating block header: {}", horizon_header);
         let total_offset = self.fetch_total_offset_commitment(hash.clone())?;
         let emission_h = self.get_emission_commitment_at(horizon_header.height);
         let kernel_excess = self.db.fetch_kernel_commitment_sum(&hash)?;
+        debug!(target: LOG_TARGET, "Expected kernel excess:{}", kernel_excess.to_hex());
         let output = self.db.fetch_utxo_commitment_sum(&hash)?;
+
+        debug!(target: LOG_TARGET, "Total utxo commitment sum:{}", output.to_hex());
 
         let input = &(&emission_h + &kernel_excess) + &total_offset;
 
+        debug!(target: LOG_TARGET, "Expected utxo commitment sum:{}", input.to_hex());
         if output != input {
             return Err(ValidationError::ChainBalanceValidationFailed(horizon_header.height));
         }
@@ -79,11 +87,9 @@ impl<B: BlockchainBackend> ChainBalanceValidator<B> {
     fn get_emission_commitment_at(&self, height: u64) -> Commitment {
         let total_supply =
             self.rules.get_emission_reward_at(height) + self.rules.consensus_constants(height).faucet_value();
-        trace!(
+        debug!(
             target: LOG_TARGET,
-            "Expected emission at height {} is {}",
-            height,
-            total_supply
+            "Expected emission at height {} is {}", height, total_supply
         );
         self.commit_value(total_supply)
     }
