@@ -267,30 +267,7 @@ macro_rules! try_fetch {
 ///
 /// You typically don't interact with `BlockChainDatabase` directly, since it doesn't enforce any consensus rules; it
 /// only really stores and fetches blockchain components. To create an instance of `BlockchainDatabase', you must
-/// provide it with the backend it is going to use; for example, for a memory-backed DB:
-///
-/// ```
-/// use tari_core::{
-///     chain_storage::{BlockchainDatabase, BlockchainDatabaseConfig, MemoryDatabase, Validators},
-///     consensus::{ConsensusManagerBuilder, Network},
-///     transactions::types::HashDigest,
-///     validation::{mocks::MockValidator, StatefulValidation},
-/// };
-/// let db_backend = MemoryDatabase::<HashDigest>::default();
-/// let validators = Validators::new(MockValidator::new(true), MockValidator::new(true));
-/// let db = MemoryDatabase::<HashDigest>::default();
-/// let network = Network::LocalNet;
-/// let rules = ConsensusManagerBuilder::new(network).build();
-/// let db = BlockchainDatabase::new(
-///     db_backend,
-///     &rules,
-///     validators,
-///     BlockchainDatabaseConfig::default(),
-///     false,
-/// )
-/// .unwrap();
-/// // Do stuff with db
-/// ```
+/// provide it with the backend it is going to use.
 pub struct BlockchainDatabase<B> {
     db: Arc<RwLock<B>>,
     validators: Validators<B>,
@@ -370,6 +347,9 @@ where B: BlockchainBackend
         })
     }
 
+    pub fn  consensus_manager(&self) -> &ConsensusManager {
+        &self.consensus_manager
+    }
     /// Returns the height of the current longest chain. This method will only fail if there's a fairly serious
     /// synchronisation problem on the database. You can try calling [BlockchainDatabase::try_recover_metadata] in
     /// that case to re-sync the metadata; or else just exit the program.

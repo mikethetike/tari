@@ -25,7 +25,6 @@ mod helpers;
 
 use futures::StreamExt;
 use helpers::{
-    block_builders::create_genesis_block_with_coinbase_value,
     event_stream::event_stream_next,
     nodes::create_network_with_2_base_nodes_with_config,
 };
@@ -52,6 +51,7 @@ use tari_shutdown::Shutdown;
 use tari_test_utils::async_assert_eventually;
 use tempfile::tempdir;
 use tokio::{runtime::Runtime, sync::broadcast};
+use tari_core::test_helpers::block_builders::create_genesis_block_with_coinbase_value;
 
 #[test]
 fn mining() {

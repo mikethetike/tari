@@ -24,7 +24,6 @@
 mod helpers;
 
 use helpers::{
-    block_builders::create_genesis_block_with_coinbase_value,
     event_stream::event_stream_next,
     nodes::{random_node_identity, BaseNodeBuilder},
 };
@@ -77,6 +76,7 @@ use tokio::{
     sync::broadcast,
     time::delay_for,
 };
+use tari_core::test_helpers::block_builders::create_genesis_block_with_coinbase_value;
 
 pub fn random_string(len: usize) -> String {
     iter::repeat(()).map(|_| OsRng.sample(Alphanumeric)).take(len).collect()

@@ -23,7 +23,7 @@
 use croaring::Bitmap;
 use rand::{rngs::OsRng, RngCore};
 use std::{iter::repeat_with, sync::Arc};
-use tari_core::{
+use crate::{
     blocks::{Block, BlockHeader, NewBlockTemplate},
     chain_storage::{BlockAddResult, BlockchainBackend, BlockchainDatabase, ChainStorageError},
     consensus::{ConsensusConstants, ConsensusManager, ConsensusManagerBuilder, Network},

@@ -21,11 +21,10 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-use crate::helpers::block_builders::{create_genesis_block, generate_new_block};
 
 use tari_core::{
     blocks::Block,
-    chain_storage::{create_lmdb_database, BlockchainDatabase, BlockchainDatabaseConfig, LMDBDatabase, Validators},
+    chain_storage::{BlockchainDatabase, BlockchainDatabaseConfig, LMDBDatabase, Validators},
     consensus::{ConsensusConstantsBuilder, ConsensusManager, ConsensusManagerBuilder, Network},
     test_helpers::blockchain::{create_store_with_consensus, create_test_db, TempDatabase},
     transactions::{
@@ -35,7 +34,7 @@ use tari_core::{
     },
     txn_schema,
 };
-use tari_storage::lmdb_store::LMDBConfig;
+use tari_core::test_helpers::block_builders::{generate_new_block, create_genesis_block};
 // use crate::helpers::database::{TempDatabase, create_store_with_consensus};
 
 static _EMISSION: [u64; 2] = [10, 10];

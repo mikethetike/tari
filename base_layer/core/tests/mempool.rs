@@ -24,14 +24,7 @@
 mod helpers;
 
 use helpers::{
-    block_builders::{
-        chain_block,
-        create_genesis_block,
-        create_genesis_block_with_coinbase_value,
-        find_header_with_achieved_difficulty,
-        generate_block,
-        generate_new_block,
-    },
+
     nodes::{create_network_with_2_base_nodes_with_config, create_network_with_3_base_nodes_with_config},
     sample_blockchains::create_new_blockchain,
 };
@@ -39,6 +32,14 @@ use helpers::{
 use std::{ops::Deref, sync::Arc, time::Duration};
 use tari_comms_dht::domain_message::OutboundDomainMessage;
 use tari_core::{
+    test_helpers::block_builders::{
+        chain_block,
+        create_genesis_block,
+        create_genesis_block_with_coinbase_value,
+        find_header_with_achieved_difficulty,
+        generate_block,
+        generate_new_block,
+    },
     base_node::{
         comms_interface::Broadcast,
         service::BaseNodeServiceConfig,

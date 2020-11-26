@@ -23,9 +23,8 @@
 #[allow(dead_code)]
 mod helpers;
 
-use crate::helpers::block_builders::append_block_with_coinbase;
 use futures::StreamExt;
-use helpers::{block_builders::create_genesis_block, nodes::create_network_with_2_base_nodes_with_config};
+use helpers::{nodes::create_network_with_2_base_nodes_with_config};
 use tari_core::{
     base_node::{
         comms_interface::BlockEvent,
@@ -69,6 +68,8 @@ use tokio::{
     runtime::Runtime,
     sync::{broadcast, watch},
 };
+use tari_core::test_helpers::block_builders::{append_block_with_coinbase, create_genesis_block};
+
 static EMISSION: [u64; 2] = [10, 10];
 #[test]
 fn test_pruned_mode_sync_with_future_horizon_sync_height() {

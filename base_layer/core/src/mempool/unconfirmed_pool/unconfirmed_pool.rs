@@ -274,10 +274,10 @@ mod test {
     use super::*;
     use crate::{
         consensus::{ConsensusManagerBuilder, Network},
-        test_helpers::create_orphan_block,
         transactions::tari_amount::MicroTari,
         tx,
     };
+    use crate::test_helpers::create_orphan_block;
 
     #[test]
     fn test_insert_and_retrieve_highest_priority_txs() {

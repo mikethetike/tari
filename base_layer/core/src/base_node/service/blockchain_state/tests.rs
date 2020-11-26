@@ -26,11 +26,11 @@ use crate::{
     tari_utilities::Hashable,
     test_helpers::{
         blockchain::{create_new_blockchain, TempDatabase},
-        create_block,
     },
 };
 use futures::channel::mpsc;
 use tokio::task;
+use crate::test_helpers::block_builders::{generate_block, chain_block};
 
 fn setup() -> (BlockchainStateServiceHandle, BlockchainDatabase<TempDatabase>) {
     let db = create_new_blockchain();
@@ -41,11 +41,11 @@ fn setup() -> (BlockchainStateServiceHandle, BlockchainDatabase<TempDatabase>) {
 }
 
 fn add_many_chained_blocks(size: usize, db: &BlockchainDatabase<TempDatabase>) {
-    let mut prev_block_hash = db.fetch_block(0).unwrap().block.hash();
+    let mut prev_block = db.fetch_block(db.get_chain_metadata().unwrap().height_of_longest_chain()).unwrap().block;
     for i in 1..=size as u64 {
-        let mut block = create_block(1, i, vec![]);
-        block.header.prev_hash = prev_block_hash.clone();
-        prev_block_hash = block.hash();
+        let block = chain_block(&prev_block, vec![], db.consensus_manager());
+        let block  =db.calculate_mmr_roots(block).unwrap();
+        prev_block = block.clone();
         db.add_block(block.into()).unwrap();
     }
 }

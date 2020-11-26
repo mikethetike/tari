@@ -24,7 +24,6 @@
 mod helpers;
 
 use helpers::{
-    block_builders::chain_block,
     pow_blockchain::{append_to_pow_blockchain, create_test_pow_blockchain},
 };
 // use crate::helpers::database::create_store;
@@ -36,6 +35,7 @@ use tari_core::{
     test_helpers::blockchain::create_store,
 };
 use tari_crypto::tari_utilities::epoch_time::EpochTime;
+use tari_core::test_helpers::block_builders::chain_block;
 
 pub fn get_header_timestamps<B: BlockchainBackend>(db: &B, height: u64, timestamp_count: u64) -> Vec<EpochTime> {
     let min_height = height.checked_sub(timestamp_count).unwrap_or(0);

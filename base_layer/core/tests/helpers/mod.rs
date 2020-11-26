@@ -3,7 +3,6 @@
 //! There are macros, such as `txn_schema!` that help you to easily construct valid transactions in test blockchains,
 //! through to functions that bootstrap entire blockchains in `sample_blockchains`.
 
-pub mod block_builders;
 pub mod block_proxy;
 pub mod chain_metadata;
 pub mod database;

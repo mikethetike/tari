@@ -24,12 +24,14 @@
 //! integration test folder.
 
 pub mod blockchain;
+pub mod  block_builders;
 
 use crate::{
     blocks::{Block, BlockHeader},
     consensus::ConsensusManager,
     transactions::transaction::Transaction,
 };
+
 
 use rand::{distributions::Alphanumeric, Rng};
 use std::{iter, path::Path, sync::Arc};
@@ -39,18 +41,12 @@ use tari_storage::{lmdb_store::LMDBBuilder, LMDBWrapper};
 /// Create a partially constructed block using the provided set of transactions
 /// is chain_block, or rename it to `create_orphan_block` and drop the prev_block argument
 pub fn create_orphan_block(block_height: u64, transactions: Vec<Transaction>, consensus: &ConsensusManager) -> Block {
-    create_block(
-        consensus.consensus_constants(block_height).blockchain_version(),
-        block_height,
-        transactions,
-    )
-}
 
-pub fn create_block(block_version: u16, block_height: u64, transactions: Vec<Transaction>) -> Block {
-    let mut header = BlockHeader::new(block_version);
+    let mut header = BlockHeader::new(consensus.consensus_constants(block_height).blockchain_version());
     header.height = block_height;
     header.into_builder().with_transactions(transactions).build()
 }
+
 
 pub fn create_peer_manager<P: AsRef<Path>>(data_path: P) -> Arc<PeerManager> {
     let peer_database_name = {

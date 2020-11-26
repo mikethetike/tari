@@ -24,7 +24,6 @@
 mod helpers;
 // use crate::helpers::database::create_store;
 use futures::{channel::mpsc::unbounded as futures_mpsc_channel_unbounded, StreamExt};
-use helpers::block_builders::append_block;
 use tari_comms::peer_manager::NodeId;
 use tari_core::{
     base_node::{
@@ -46,6 +45,7 @@ use tari_core::{
 use tari_crypto::tari_utilities::hash::Hashable;
 use tari_service_framework::{reply_channel, reply_channel::Receiver};
 use tokio::sync::broadcast;
+use tari_core::test_helpers::block_builders::append_block;
 // use crate::helpers::database::create_test_db;
 
 async fn test_request_responder(

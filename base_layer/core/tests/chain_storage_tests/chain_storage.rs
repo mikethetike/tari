@@ -23,15 +23,6 @@
 // use crate::helpers::database::create_test_db;
 // use crate::helpers::database::create_store;
 use crate::helpers::{
-    block_builders::{
-        append_block,
-        chain_block,
-        create_genesis_block,
-        find_header_with_achieved_difficulty,
-        generate_new_block,
-        generate_new_block_with_achieved_difficulty,
-        generate_new_block_with_coinbase,
-    },
     database::create_orphan_block,
     sample_blockchains::{create_new_blockchain, create_new_blockchain_lmdb},
     test_blockchain::TestBlockchain,
@@ -73,6 +64,7 @@ use tari_mmr::{MmrCacheConfig, MutableMmr};
 use tari_storage::lmdb_store::LMDBConfig;
 use tari_test_utils::{paths::create_temporary_data_path, unpack_enum};
 use tari_core::test_helpers::blockchain::create_store_with_consensus_and_validators;
+use tari_core::test_helpers::block_builders::{append_block, generate_new_block_with_achieved_difficulty, chain_block, find_header_with_achieved_difficulty, generate_new_block, create_genesis_block};
 
 #[test]
 fn write_and_fetch_metadata() {
@@ -833,7 +825,7 @@ fn handle_reorg_with_no_removed_blocks() {
     let consensus_manager_fork = ConsensusManagerBuilder::new(network)
         .with_block(blocks[0].clone())
         .build();
-    let mut orphan1_store = create_store();
+    let mut orphan1_store = create_store_with_consensus(&consensus_manager_fork);
     orphan1_store.add_block(blocks[1].clone().into()).unwrap(); // A1
     let mut orphan1_blocks = vec![blocks[0].clone(), blocks[1].clone()];
     let mut orphan1_outputs = vec![outputs[0].clone(), outputs[1].clone()];
@@ -1006,7 +998,6 @@ fn handle_reorg_failure_recovery() {
 
 #[test]
 fn store_and_retrieve_blocks() {
-    let mmr_cache_config = MmrCacheConfig { rewind_hist_len: 2 };
     let validators = Validators::new(MockValidator::new(true), MockValidator::new(true));
     let network = Network::LocalNet;
     let rules = ConsensusManagerBuilder::new(network).build();

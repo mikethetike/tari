@@ -22,16 +22,8 @@
 
 #[allow(dead_code)]
 mod helpers;
-use crate::helpers::block_builders::construct_chained_blocks;
 use futures::join;
 use helpers::{
-    block_builders::{
-        append_block,
-        chain_block,
-        create_genesis_block,
-        create_genesis_block_with_utxos,
-        generate_block,
-    },
     event_stream::event_stream_next,
     nodes::{
         create_network_with_2_base_nodes,
@@ -70,6 +62,7 @@ use tari_p2p::services::liveness::LivenessConfig;
 use tari_test_utils::unpack_enum;
 use tempfile::tempdir;
 use tokio::runtime::Runtime;
+use tari_core::test_helpers::block_builders::{create_genesis_block, generate_block, construct_chained_blocks, append_block, chain_block, create_genesis_block_with_utxos};
 
 #[test]
 fn request_response_get_metadata() {

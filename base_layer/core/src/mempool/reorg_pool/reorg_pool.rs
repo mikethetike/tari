@@ -156,11 +156,11 @@ mod test {
     use super::*;
     use crate::{
         consensus::{ConsensusManagerBuilder, Network},
-        test_helpers::create_orphan_block,
         transactions::tari_amount::MicroTari,
         tx,
     };
     use std::{thread, time::Duration};
+    use crate::test_helpers::create_orphan_block;
 
     #[test]
     fn test_insert_rlu_and_ttl() {

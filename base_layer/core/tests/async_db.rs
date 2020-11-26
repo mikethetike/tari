@@ -25,7 +25,6 @@
 mod helpers;
 
 use helpers::{
-    block_builders::chain_block,
     database::create_orphan_block,
     sample_blockchains::{create_blockchain_db_no_cut_through, create_new_blockchain},
 };
@@ -44,6 +43,7 @@ use tari_core::{
 };
 use tari_crypto::{commitment::HomomorphicCommitmentFactory, tari_utilities::Hashable};
 use tari_test_utils::runtime::test_async;
+use tari_core::test_helpers::block_builders::chain_block;
 
 /// Finds the UTXO in a block corresponding to the unblinded output. We have to search for outputs because UTXOs get
 /// sorted in blocks, and so the order they were inserted in can change.

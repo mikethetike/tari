@@ -25,14 +25,6 @@ mod helpers;
 
 use futures::StreamExt;
 use helpers::{
-    block_builders::{
-        append_block,
-        chain_block,
-        chain_block_with_coinbase,
-        create_coinbase,
-        create_genesis_block,
-        find_header_with_achieved_difficulty,
-    },
     chain_metadata::{random_peer_metadata, MockChainMetadata},
     nodes::{
         create_network_with_2_base_nodes_with_config,
@@ -46,6 +38,14 @@ use helpers::{
 use rand::{rngs::OsRng, RngCore};
 use std::{thread, time::Duration};
 use tari_core::{
+    test_helpers::block_builders::{
+        append_block,
+        chain_block,
+        chain_block_with_coinbase,
+        create_coinbase,
+        create_genesis_block,
+        find_header_with_achieved_difficulty,
+    },
     base_node::{
         chain_metadata_service::PeerChainMetadata,
         comms_interface::Broadcast,

@@ -22,7 +22,6 @@
 //
 
 use crate::helpers::{
-    block_builders::{chain_block, find_header_with_achieved_difficulty},
     block_proxy::BlockProxy,
     sample_blockchains::create_new_blockchain,
     test_block_builder::{TestBlockBuilder, TestBlockBuilderInner},
@@ -36,6 +35,7 @@ use tari_core::{
     test_helpers::blockchain::TempDatabase,
 };
 use tari_crypto::tari_utilities::Hashable;
+use tari_core::test_helpers::block_builders::{chain_block, find_header_with_achieved_difficulty};
 
 const LOG_TARGET: &str = "tari_core::tests::helpers::test_blockchain";
 
